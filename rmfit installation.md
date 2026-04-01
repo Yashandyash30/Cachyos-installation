@@ -72,3 +72,18 @@ If you are already inside the container and want to launch it:
 
 ```bash
 echo 'alias rmfit="cd ~/Downloads/Programmes/rmfit_v432 && export IDL_DIR=\
+
+Outside the Container (CachyOS Host / Fish Shell):
+If you want to be able to type rmfit directly into your main host terminal and have it automatically wake up the container, set the variables, and launch the GUI, run this in your Fish shell:
+```bash
+
+function rmfit
+    # Tells Distrobox to enter 'void', navigate to the folder, set the IDL path, and run the VM
+    distrobox enter void -- bash -c "cd ~/Downloads/Programmes/rmfit_v432 && export IDL_DIR=\$PWD/idl81 && ./idl81/bin/idl -rt=rmfit.sav"
+end
+
+# Save the function permanently
+funcsave rmfit
+```
+
+Troubleshooting Note: If the application ever throws an error about libtinfo.so.5 or libncurses.so.5 down the line, it just means you need to reinstall the compatibility layer inside the container: sudo apt install libncurses5 libtinfo5.
