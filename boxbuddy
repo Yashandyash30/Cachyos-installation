@@ -1,0 +1,39 @@
+Installing Distrobox and its GUI manager, BoxBuddy, on CachyOS is very straightforward. Since CachyOS is based on Arch Linux, you'll use pacman for the official packages and paru (CachyOS's default AUR helper) for BoxBuddy.
+
+Here is exactly how to get everything set up:
+1. Install Podman and Distrobox
+
+Distrobox is just a wrapper; it needs a container backend to actually run the environments. Podman is the highly recommended, rootless default for this. Both are in the official Arch repositories.
+
+Open your terminal and run:
+Bash
+
+sudo pacman -S podman distrobox
+
+2. Install BoxBuddy
+
+BoxBuddy is a fantastic GTK GUI for Distrobox, but it lives in the Arch User Repository (AUR). You can easily grab it using paru.
+
+Run the following command (do not use sudo with paru):
+Bash
+
+paru -S boxbuddy
+
+Note: Press Enter to proceed when paru asks you to review the PKGBUILD or confirm the installation.
+3. Verify the Setup
+
+Before spinning up your first container, it's good practice to ensure Podman is working correctly without root privileges. Run this quick test:
+Bash
+
+podman info
+
+If it prints out your system information without throwing any permission errors, you are ready to go.
+4. Launch BoxBuddy
+
+You can now open BoxBuddy from your application launcher.
+
+    Click the "+" icon in BoxBuddy to create a new container.
+
+    You can easily select images for Ubuntu, Fedora, Alpine, or even another Arch environment right from the dropdown menu.
+
+    Once the container is built, you can use BoxBuddy to launch its terminal, integrate its apps into your CachyOS menu, or manage its files.
