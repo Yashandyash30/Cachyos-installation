@@ -1,0 +1,17 @@
+GitHub CLI (gh) - Most Likely
+
+If you are pushing your dotfiles to GitHub, this is the modern, official way to do it. When you run its setup command, it generates a one-time code and opens your browser for you to log in.
+
+    To install it on CachyOS/Arch:
+    Bash
+
+    sudo pacman -S github-cli
+
+    To trigger the browser login:
+    Bash
+
+    gh auth login
+
+    (Choose "GitHub.com" -> "HTTPS" -> "Login with a web browser")
+
+Once you do this, Git will automatically use this authentication every time you type git push.
