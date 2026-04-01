@@ -1,0 +1,267 @@
+1. Install Walker
+
+paru -S walker
+
+Bind it to a Shortcut in Niri
+
+Now, we need to tell Niri to open Walker when you press a shortcut. Many people like to replace their default app launcher shortcut, or assign a new one like Super + S (for Search).
+
+    Open your Niri keybinds file:
+
+    nano ~/.config/niri/cfg/keybinds.kdl
+add this line
+
+// Walker App Launcher
+    Alt+Space                           hotkey-overlay-title="Open Walker Launcher" { spawn "walker"; }
+
+How to get the best "Preview" experience:
+
+To ensure Walker or Ulauncher can at least show those thumbnails for your files, your system needs background thumbnail generation installed.
+
+Since you are on an Arch-based system, you can ensure your system generates thumbnails for images and PDFs by running:
+Bash
+
+sudo pacman -S tumbler poppler-glib ffmpegthumbnailer
+
+ ❯ walker
+
+make sure 'walker --gapplication-service' is running!
+
+
+(walker:3426): Gdk-WARNING **: 18:03:59.290: Vulkan: Loader Message: setup_loader_term_phys_devs:  Failed to detect any valid GPUs in the current config
+
+
+(walker:3426): Gdk-WARNING **: 18:03:59.290: vkEnumeratePhysicalDevices(): Initialization of an object could not be completed for implementation-specific reasons. (VK_ERROR_INITIALIZATION_FAILED) (-3)
+
+Please install elephant. 
+
+
+
+
+1. The "Please install elephant" Error
+
+Walker 1.0 completely split its code in half. Walker is now just the "dumb" visual frontend, and it relies on a new background engine called Elephant to do the actual heavy lifting (finding apps, searching files, doing math).
+
+Because you are on an Arch-based system, you can easily install the engine and all of its official search providers:
+Bash
+
+paru -S elephant-all-bin
+
+(Using the -bin package saves you from having to compile a bunch of Go code).
+
+Once it installs, start the background service:
+Bash
+
+systemctl --user enable --now elephant.service
+
+2. The "Failed to detect any valid GPUs" Error
+
+This is a classic VMware graphics issue. Walker is built using the modern GTK4 toolkit, which defaults to using the Vulkan rendering engine. VMware's virtual graphics driver does not support Vulkan properly, causing the VK_ERROR_INITIALIZATION_FAILED crash.
+
+To fix this, we just need to tell Walker to use standard OpenGL instead of Vulkan.
+
+Since you have a beautifully modular Niri configuration, here is the cleanest way to set it up:
+A. Run Walker as a Background Service
+
+To make Walker open instantly when you press your shortcut, it should run silently in the background from the moment you log in. Open your autostart file:
+Bash
+
+nano ~/.config/niri/cfg/autostart.kdl
+
+
+add these lines
+
+spawn-at-startup "elephant"
+spawn-at-startup "sh" "-c" "GSK_RENDERER=gl walker --gapplication-service" 
+
+
+❯ systemctl --user enable --now elephant.service
+Failed to enable unit: Unit elephant.service does not exist
+
+Gemini said
+
+Ah, the classic AUR packaging quirk! It looks like the elephant-all-bin package either didn't bundle the official .service file, or your systemd daemon just hasn't refreshed to see it yet.
+
+But honestly? Since you are using a custom Wayland compositor like Niri, relying on systemctl to manage your background apps can sometimes be more of a headache than it's worth. We can bypass systemd completely and just let Niri handle both engines directly!
+
+Here is how to get it running perfectly without the missing service file:
+1. Add Elephant to Niri's Autostart
+
+Since we already opened your autostart file for Walker, let's just add Elephant right above it.
+
+Open your file:
+Bash
+
+nano ~/.config/niri/cfg/autostart.kdl
+
+Make sure the bottom of your file has both of these lines. Niri will start the data engine first, and then start the Walker UI service right after it:
+Code snippet
+
+spawn-at-startup "elephant"
+spawn-at-startup "sh" "-c" "GSK_RENDERER=gl walker --gapplication-service"
+
+Save (Ctrl+O, Enter) and Exit (Ctrl+X).
+
+2. Start them right now (Without rebooting)
+
+Since Niri only runs autostart commands when you first log in, we just need to manually kickstart them for this current session so you can test it immediately.
+
+Run these two commands in your terminal:
+Bash
+
+elephant &
+
+(Press Enter again to get your terminal prompt back, then run:)
+Bash
+
+GSK_RENDERER=gl walker --gapplication-service &
+
+3. Test it out!
+
+Press your Super + Space shortcut. Walker should pop up instantly in the center of your screen, perfectly rendered in OpenGL, with the Elephant engine humming in the background. Try typing =50*1.08 to see if the calculator module instantly kicks in!
+
+Would you like me to show you where the Elephant configuration file is generated so you can tell it exactly which folders to scan for your files (like your Documents or Downloads)?
+
+
+
+
+
+The edit you just made to your autostart.kdl file actually did make it permanent! Every time you turn on your computer and log into Niri, those two lines will automatically launch both Elephant and Walker in the background.
+
+However, relying on your window manager to start a heavy background data engine like Elephant isn't always the most bulletproof method. If the Elephant engine crashes in the background, Niri won't restart it for you.
+
+If you want to do this the "proper" Arch Linux way and create that missing systemd service yourself (so it runs perfectly in the background and auto-restarts if it ever crashes), it is incredibly easy to do.
+
+Here is how to make a permanent, robust system service for Elephant:
+1. Create the Systemd Folder
+
+First, make sure the folder for your personal user services exists:
+Bash
+
+mkdir -p ~/.config/systemd/user/
+
+2. Create the Service File
+
+Open a new file for the Elephant service using nano:
+Bash
+
+nano ~/.config/systemd/user/elephant.service
+
+3. Paste the Configuration
+
+Paste this exact block of text into the file. This tells your system what Elephant is, how to start it, and to automatically restart it if it ever fails:
+Ini, TOML
+
+[Unit]
+Description=Elephant Data Engine for Walker
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/elephant
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
+
+Save (Ctrl+O, Enter) and Exit (Ctrl+X).
+4. Enable the Service
+
+Now, tell systemd to reload its files so it notices the new one you just made, and then enable it permanently:
+Bash
+
+systemctl --user daemon-reload
+systemctl --user enable --now elephant.service
+
+
+Awesome! Since Elephant is built to be blazing fast, it doesn't just blindly scan your entire hard drive by default. It usually limits itself to your Home folder, but you can heavily customize exactly what it looks at—and more importantly, what it ignores (like massive hidden .cache folders or game libraries).
+
+Here is how to dial in exactly where it searches:
+1. Open the Elephant Files Config
+
+Elephant separates its configuration into different files based on the module. The one that controls your hard drive search is files.toml.
+
+Open your terminal and run:
+Bash
+
+mkdir -p ~/.config/elephant
+nano ~/.config/elephant/files.toml
+
+2. Tell it Where to Look
+
+If the file is empty (or doesn't exist yet), that is completely normal. You can paste this exact block in to set up your custom search parameters.
+
+Adjust the folders inside the brackets to match your actual workflow:
+Ini, TOML
+
+[files]
+# Directories you actively want Walker to search
+paths = [
+    "~/Documents",
+    "~/Downloads",
+    "~/Pictures",
+    "~/Projects"
+]
+
+# Directories you want it to completely ignore (speeds up search!)
+ignored_paths = [
+    "~/.cache",
+    "~/.local",
+    "~/.cargo",
+    "~/Games"
+]
+
+# Do you want to find hidden files (files starting with a dot)?
+show_hidden = false
+
+(Pro-tip: Keeping show_hidden set to false and ignoring your .cache folder will make your file searches basically instantaneous).
+3. Save and Restart the Engine
+
+    Save the file (Ctrl+O, Enter) and Exit (Ctrl+X).
+
+    Because Elephant runs as a background service now, it won't read this new config file until you restart it. Since we set it up as a systemd service earlier, just run:
+    Bash
+
+    systemctl --user restart elephant.service
+
+Now, hit Super + Space and type find  followed by the name of a file you know is in your Documents or Downloads folder. It should instantly pop up!
+
+Would you like me to show you how to tweak Walker's visual UI (like adding that frosted glass blur behind the search bar) so it perfectly matches the Noctalia panels we set up earlier?
+
+
+
+Ah, I know exactly what is happening! This is a classic Linux Wayland quirk, and the fix depends on exactly what you saw on your screen right before the browser opened.
+
+There are two different things that cause this. Let's squash whichever one is happening to you:
+Scenario A: It did a Google search for the words "find..."
+
+What's happening: You typed find [filename], and Walker didn't show you a list of local files. Instead, it just defaulted to doing a web search for exactly what you typed.
+Why: Walker isn't communicating with the Elephant background service properly, so it doesn't know what the find keyword means and falls back to its web search module.
+The Fix: Make sure the Elephant service is actually running in your current session. Run this in your terminal:
+Bash
+
+systemctl --user restart elephant.service
+
+Wait about 5 seconds, then try searching again. If Elephant is running properly, typing find  should instantly change the Walker UI to show local files.
+Scenario B: It found the file, but opened it in the browser anyway
+
+What's happening: Walker successfully displayed your file in the search results, but when you pressed Enter, it opened in Firefox/Brave instead of your file manager or image viewer.
+Why: This is notorious on Linux. It's called "MIME Hijacking." Web browsers aggressively tell the underlying system, "Hey, I can open PDFs, images, and even folders!" Because Niri is a minimal window manager, it doesn't have a heavy settings daemon fighting back against the browser, so the browser steals the default associations.
+The Fix:
+We need to use the xdg-mime command to force the system to hand those files back to your actual apps.
+
+Open your terminal and run these commands to set your file manager (assuming you are using the standard CachyOS/GNOME file manager, Nautilus) as the absolute default for opening folders and unknown files:
+Bash
+
+xdg-mime default org.gnome.Nautilus.desktop inode/directory
+xdg-mime default org.gnome.Nautilus.desktop application/x-directory
+
+If it's opening images in the browser, you can route them back to your image viewer (like Loupe or whatever is installed):
+Bash
+
+xdg-mime default org.gnome.Loupe.desktop image/png
+xdg-mime default org.gnome.Loupe.desktop image/jpeg
+
+(Note: If you use a different file manager like Thunar or Dolphin, just replace org.gnome.Nautilus.desktop with thunar.desktop or org.kde.dolphin.desktop).
+
+Which of these two scenarios was it? If it's Scenario B and you have a specific file type (like a PDF) stubbornly opening in the browser, let me know and I'll give you the exact command to route it to the right app!
