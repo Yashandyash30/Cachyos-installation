@@ -1,0 +1,44 @@
+Because Cloudflare does not provide an official Pacman package, the best way to install it on CachyOS is to pull the pre-compiled binary directly from the Arch User Repository (AUR).
+
+Here is the complete step-by-step process to get it installed, running, and connected.
+Step 1: Install the Package
+
+Open your terminal and use your AUR helper (paru or yay) to download and install the WARP client.
+Bash
+
+paru -S cloudflare-warp-bin
+
+(Press Y to confirm the installation when prompted).
+Step 2: Enable the Background Service
+
+WARP relies on a system daemon to manage your network interfaces and route your traffic. If you skip this step, the client will immediately crash or throw an error when you try to connect.
+
+Run this command to start the service and ensure it runs automatically every time you boot your computer:
+Bash
+
+sudo systemctl enable --now warp-svc.service
+
+Step 3: Register and Connect
+
+On Linux, Cloudflare WARP is managed entirely through the command line using the warp-cli tool.
+
+    Register your device: This generates a free account/key on Cloudflare's servers for your machine.
+    Bash
+
+    warp-cli registration new
+
+    (Note: You must accept their Terms of Service when prompted).
+
+    Connect to the network:
+    Bash
+
+    warp-cli connect
+
+Step 4: Verify Your Connection
+
+To confirm that your web traffic is actually being routed and encrypted through Cloudflare's network, run this quick trace command:
+Bash
+
+curl https://www.cloudflare.com/cdn-cgi/trace/
+
+Look at the output printed in your terminal. If you see warp=on near the bottom of the text block, your installation was successful and you are ready to browse!
