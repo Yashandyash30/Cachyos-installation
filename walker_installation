@@ -265,3 +265,85 @@ xdg-mime default org.gnome.Loupe.desktop image/jpeg
 (Note: If you use a different file manager like Thunar or Dolphin, just replace org.gnome.Nautilus.desktop with thunar.desktop or org.kde.dolphin.desktop).
 
 Which of these two scenarios was it? If it's Scenario B and you have a specific file type (like a PDF) stubbornly opening in the browser, let me know and I'll give you the exact command to route it to the right app!
+
+
+
+
+ ❯ GSK_RENDERER=gl walker --gapplication-service &
+
+
+~
+
+❯ Failed to register: Unable to acquire bus name 'dev.benz.walker'
+
+
+fish: Job 2, 'GSK_RENDERER=gl walker --gappli…' has ended
+Gemini said
+
+The error Unable to acquire bus name 'dev.benz.walker' means that an instance of Walker is already running in the background and holding onto that D-Bus connection. You can't start a second service while the first one is still alive.
+
+Here is how to clear the stuck process and start it fresh with your new OpenGL renderer flag:
+1. Kill the existing Walker process
+
+Run this to force-close any hidden Walker services:
+Bash
+
+pkill -f walker
+
+2. Verify it is dead
+
+You can run this just to be absolutely sure it's gone. If it returns nothing, you are good to go:
+Bash
+
+pgrep walker
+
+3. Start it again
+
+Now that the bus name is free, run your command again:
+Bash
+
+GSK_RENDERER=gl walker --gapplication-service &
+
+It should start cleanly now without the D-Bus error!
+You said
+
+waiting for elephant
+Gemini said
+
+Ah, the classic "waiting for elephant" message! Since Walker is just the graphical frontend, this message means it is looking for its backend engine (elephant), but the engine isn't currently running.
+
+Since we recently did a deep clean and killed all the background processes, you just need to start the backend first before starting Walker.
+1. Kill any stuck processes
+
+Let's make sure nothing is hanging:
+Bash
+
+pkill -f walker
+pkill -f elephant
+
+2. Start the Backend (Elephant)
+
+Run the engine in the background:
+Bash
+
+elephant &
+
+(If it says command not found, it means you need to reinstall elephant-all-bin from the AUR since we wiped it earlier!)
+3. Start the Frontend (Walker)
+
+Now that the engine is running, start your Walker service with the OpenGL flag:
+Bash
+
+GSK_RENDERER=gl walker --gapplication-service &
+
+4. Test it out
+
+Hit your Alt + Space (or type walker in the terminal).
+
+If you want this to happen automatically every time you log in, remember to add both of them to your Niri autostart file (~/.config/niri/cfg/autostart.kdl):
+Code snippet
+
+spawn-at-startup "elephant"
+spawn-at-startup "sh" "-c" "GSK_RENDERER=gl walker --gapplication-service"
+
+Did starting elephant first clear up the waiting message?
