@@ -1,0 +1,13 @@
+2. Download the real .deb file
+
+Use this exact wget command. The /download/ part of the URL is the secret sauce that tells GitHub to give you the actual binary file, not the webpage:
+Bash
+
+wget https://github.com/fastfetch-cli/fastfetch/releases/latest/download/fastfetch-linux-amd64.deb
+
+3. Install it (The safe way)
+
+Once the download finishes, install it. It is actually better to use apt instead of dpkg for local files because apt will automatically pull in any missing dependencies if needed:
+Bash
+
+sudo apt install ./fastfetch-linux-amd64.deb
