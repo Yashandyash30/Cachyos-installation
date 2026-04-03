@@ -1,0 +1,49 @@
+Here is a clean, definitive reference guide you can save for the future. This workflow ensures that your core astronomy tools remain completely isolated from Arch/CachyOS system updates.
+Future-Proof Guide: Installing IRAF & PyRAF on Arch/CachyOS
+
+Step 1: Install Core System Binaries (AUR)
+IRAF is a massive legacy C/Fortran project, so it must be installed globally at the system level. The Arch User Repository packages the pre-compiled binaries along with the essential NOAO packages (necessary for standard optical data reduction).
+Bash
+
+paru -S iraf-bin iraf-noao-bin
+
+(Verification: Run irafcl in the terminal to ensure the base system works, then type logout)
+
+Step 2: Create an Isolated Mamba Environment
+Create a dedicated environment with your required Python version and the standard astronomy stack from conda-forge. Keeping this isolated prevents global package breakage during rolling-release updates.
+Bash
+
+mamba create -n pyraf -c conda-forge python=3.11 numpy scipy astropy matplotlib
+
+Step 3: Install the PyRAF Wrapper
+Because PyRAF is now officially maintained on PyPI rather than Conda, you must install it using pip from inside your newly created environment.
+Bash
+
+mamba activate pyraf
+pip install pyraf
+
+Step 4: Initialize Your Working Directory
+IRAF requires a configuration file (login.cl) in the directory where your data lives. You must do this once for every new project folder.
+Bash
+
+# Navigate to your data folder
+cd /path/to/your/project
+
+# Generate the configuration file
+mkiraf
+
+(When prompted for terminal type, input xgterm or xterm)
+
+Step 5: Launch
+Make sure your Mamba environment is active, then launch the wrapper. It will automatically detect the iraf-bin installation from Step 1.
+Bash
+
+pyraf
+
+Maintenance Tips
+
+    Updating PyRAF: Since PyRAF is installed via pip, update it from within the active environment using pip install --upgrade pyraf.
+
+    Updating System IRAF: CachyOS will naturally update the iraf-bin packages when you run a standard system update (paru -Syu).
+
+    Broken Environments: If a future Python update ever breaks your environment, do not attempt to rename or fix it. Run mamba env remove -n pyraf and repeat Steps 2 and 3.
