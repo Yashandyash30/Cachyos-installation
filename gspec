@@ -30,6 +30,18 @@ Bash
 
 find /home/void/miniforge3/envs/gbm/lib/python3.10/site-packages/gbm -type f -name "*.py" -exec sed -i 's/NavigationToolbar2TkAgg/NavigationToolbar2Tk/g' {} +
 
+4. The Fix: One More "Surgery"
+
+We need to run another sed command to find every instance where the code says .show() and change it to .draw().
+
+Make sure your gbm environment is active and run this command:
+Bash
+
+find /home/void/miniforge3/envs/gbm/lib/python3.10/site-packages/gbm -type f -name "*.py" -exec sed -i 's/plotter.canvas.show()/plotter.canvas.draw()/g' {} +
+
+Why this works:
+
+This specifically targets the line mentioned in your traceback (File ".../dataviewer.py", line 393). By changing it to draw(), the GUI will finally be able to communicate with the modern Matplotlib library on your system.
 
 4. The "Stacked" Launch Sequence
 
