@@ -1,0 +1,42 @@
+Installing Fermitools and gtburst is incredibly straightforward now that you have Miniforge (and mamba) set up.
+
+The most important thing to know is that gtburst is bundled directly inside the Fermitools package. You do not need to hunt down a separate repository for it; installing Fermitools gives you gtburst automatically.
+
+Here is the best strategy to install them cleanly on your CachyOS system:
+1. Create a Dedicated Environment
+
+Because astrophysics packages are notorious for dependency conflicts, do not install this into your threeML environment. You want a completely isolated space for Fermi data analysis.
+
+Run this command in your terminal (using mamba for speed, since the Fermi dependencies are quite large):
+Bash
+
+mamba create -n fermi -c conda-forge -c fermi fermitools fermitools-data
+
+(Note: I included fermitools-data in the command. This is highly recommended because it downloads the Galactic and isotropic diffuse emission models you will absolutely need for analyzing LAT background data).
+2. Activate the Environment
+
+Once the installation finishes, activate your new environment:
+Bash
+
+conda activate fermi
+
+3. Launch gtburst
+
+With the environment active, your shell now has access to all the command-line tools (like gtselect, gtmktime, gtbin, etc.).
+
+To launch the graphical interface for GRB analysis, simply type:
+Bash
+
+gtburst
+
+This will open the pyBurstAnalysisGUI window, allowing you to download LAT/GBM data, run unbinned likelihood analyses, and generate .pha files to feed into your threeML environment later.
+A Quick CachyOS / Wayland Tip
+
+Since you are on CachyOS and likely using Wayland (with KDE Plasma or Hyprland), if the gtburst graphical window ever looks glitchy or refuses to open, it is usually a Wayland compatibility quirk with Python's Tkinter/Qt backends.
+
+If that happens, you can force it to run through XWayland by launching it like this instead:
+Bash
+
+QT_QPA_PLATFORM=xcb gtburst
+
+Otherwise, if gtburst opens smoothly on the first try, you are ready to start analyzing LAT data!
