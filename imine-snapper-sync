@@ -1,0 +1,53 @@
+What limine-snapper-sync Does
+
+Unlike GRUB, the Limine bootloader cannot natively read Btrfs partitions to find your snapshots.
+
+To solve this, whenever your system takes a snapshot (like right before you update), limine-snapper-sync automatically kicks in. It takes the Linux kernel and boot files from that exact moment in time and copies them directly into your /boot partition (your EFI System Partition).
+
+This allows Limine to see the snapshots so you can select them from a menu when you turn on your computer. If an update completely destroys your graphical interface, you just reboot, pick a snapshot from 5 minutes ago in the Limine menu, and your machine boots up exactly as it was.
+The Pivot: Switching to Snapper
+
+If you installed Timeshift earlier, remove it so the two tools don't fight each other, and ensure the native Snapper tools are installed:
+Bash
+
+paru -R timeshift timeshift-autosnap
+paru -S snapper btrfs-assistant snap-pac
+
+(Note: snap-pac is the hook that automatically takes a snapshot every time you install or update something via pacman/paru).
+The Danger: The "85% Full" Boot Trap
+
+There is one massive catch to this setup. Because limine-snapper-sync copies a ~150MB kernel and initramfs file for every single snapshot, your /boot partition will fill up incredibly fast. If it hits 100%, your system won't be able to update kernels anymore.
+
+To prevent this, you must limit how many snapshots your system keeps.
+
+How to configure it properly:
+
+    Open Btrfs Assistant from your application menu (this is the official GUI CachyOS uses for Snapper).
+
+    Go to the Snapper Settings tab.
+
+    Set the Snapshot Limit: Find the "Number" limit and change it to something low, like 5 or 10 maximum.
+
+    Disable Timeline: Uncheck the "Enable timeline snapshots" box. You only want snapshots taken when installing/updating things (which snap-pac handles), not every single hour, otherwise your boot drive will be flooded.
+
+    Check the box for "Snapper cleanup enabled".
+
+    Click Save, and then click Apply systemd changes at the bottom right.
+
+How to Recover a Broken System
+
+If disaster ever strikes, the recovery process is flawless:
+
+    Turn on your PC and at the Limine menu, go into the Snapshots menu.
+
+    Select a working snapshot and boot into it. (Your system will be in "read-only" mode).
+
+    Once you hit your desktop, open Btrfs Assistant.
+
+    Go to the Browse/Restore tab.
+
+    Select the exact snapshot you just booted into and click Restore.
+
+    Reboot your machine normally. You are now permanently rolled back and safe.
+
+Do you know how large your /boot (EFI) partition is? (If it's the standard 512MB or 1GB, keeping that snapshot limit strictly around 5 is going to be mandatory to prevent it from filling up).
