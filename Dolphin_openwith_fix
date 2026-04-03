@@ -1,0 +1,53 @@
+This is a classic "cross-environment" quirk. Because Dolphin is a KDE application, it relies on a background service called KService to index and display applications. When you run it inside a non-KDE environment like Niri, that index often fails to initialize or looks for the wrong configuration file.
+
+Here is how to fix the empty "Open With" menu:
+1. Rebuild the Service Cache
+
+The most direct fix is to manually tell KDE's service builder to scan your applications. Open your terminal and run:
+Bash
+
+XDG_MENU_PREFIX=plasma- kbuildsycoca6 --noincremental
+
+(If you are on an older version of Dolphin/CachyOS, use kbuildsycoca5 instead.)
+
+Why this works: Dolphin looks for a file called plasma-applications.menu to know what apps are installed. By default, in Niri, it might just look for applications.menu, which doesn't exist or is empty. This command forces it to find the right list.
+2. Make it Permanent (Environment Variables)
+
+To prevent this from happening every time you reboot, you need to set the XDG_MENU_PREFIX in your Niri configuration.
+
+    Open your Niri config (usually ~/.config/niri/config.kdl).
+
+    Look for the environment block.
+
+    Add the following line:
+
+Code snippet
+
+environment {
+    XDG_MENU_PREFIX "plasma-"
+}
+
+If you prefer setting it via your shell profile, add export XDG_MENU_PREFIX=plasma- to your ~/.zshrc or ~/.bash_profile.
+3. Check your Portals (Optional but Recommended)
+
+If the above doesn't work, Niri might be struggling to talk to the "File Chooser" portal. Make sure you have the following packages installed:
+
+    xdg-desktop-portal
+
+    xdg-desktop-portal-gtk (for GTK apps)
+
+    xdg-desktop-portal-kde (for Dolphin features)
+
+In your Niri config, ensure your portals are pointed correctly. A common setup for Niri is:
+Code snippet
+
+spawn-at-startup "dbus-update-activation-environment --all"
+spawn-at-startup "/usr/lib/xdg-desktop-portal-gtk -r" 
+
+Quick Troubleshooting Tip:
+
+If the menu is still empty after running the command in Step 1, try checking if the file actually exists by running:
+ls /etc/xdg/menus/
+If you see something like arch-applications.menu instead of plasma-, change the prefix in the command above to XDG_MENU_PREFIX=arch-.
+
+Does the "Open With" list populate immediately after running that terminal command?
