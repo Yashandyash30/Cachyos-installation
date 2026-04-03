@@ -1,0 +1,54 @@
+Download the Tarball
+
+https://fermi.gsfc.nasa.gov/ssc/data/analysis/gbm/gspec/gspec-0.9.1.tar.gz
+
+From Site : https://fermi.gsfc.nasa.gov/ssc/data/analysis/gbm/
+
+It should be a file named something like gspec-0.9.1.tar.gz (or whatever the latest version is) sitting in your Downloads folder.
+
+
+1. Create the Environment
+
+We use Python 3.10. Even though it's modern, we lock Matplotlib to the last version that almost works with this legacy code.
+Bash
+
+mamba create -n gbm -c conda-forge python=3.10 tk numpy scipy astropy "matplotlib<3.6" -y
+
+2. Install the Software (The "No-Compiler" Hack)
+
+Activate the environment and install only the Python scripts. This prevents your CachyOS C++ compiler from trying (and failing) to build old libraries.
+Bash
+
+mamba activate gbm
+cd ~/Downloads
+pip install --no-deps gspec-0.9.1.tar.gz
+
+3. Apply the "Surgery" (The Patch)
+
+This command goes into the installed files and renames the outdated Matplotlib components to their modern names so the GUI doesn't crash on launch.
+Bash
+
+find /home/void/miniforge3/envs/gbm/lib/python3.10/site-packages/gbm -type f -name "*.py" -exec sed -i 's/NavigationToolbar2TkAgg/NavigationToolbar2Tk/g' {} +
+
+
+4. The "Stacked" Launch Sequence
+
+Because gspec needs to talk to xspec (which is in your henv environment), you must load both at once.
+
+Run this every time you want to use it:
+Bash
+
+# Load HEASoft first
+mamba activate henv
+
+# Layer GBM on top
+mamba activate --stack gbm
+
+# Launch the tool
+gspec
+
+Why this is necessary:
+
+The gbm_data_tools were written years ago. Since then, the Matplotlib developers renamed NavigationToolbar2TkAgg to NavigationToolbar2Tk. Most people on older Linux versions (like your Kubuntu 22.04) don't see this because they are using older libraries.
+
+On CachyOS, you are "too fast" for the old code, so we have to manually edit the software's source code (via sed) to make it compatible with 2026 standards.
