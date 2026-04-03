@@ -1,3 +1,8 @@
+Important:
+change shell from fish to bash using:
+
+fish
+
 Installing Fermitools and gtburst is incredibly straightforward now that you have Miniforge (and mamba) set up.
 
 The most important thing to know is that gtburst is bundled directly inside the Fermitools package. You do not need to hunt down a separate repository for it; installing Fermitools gives you gtburst automatically.
