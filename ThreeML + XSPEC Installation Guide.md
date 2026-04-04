@@ -45,10 +45,20 @@ conda create -n threeML \
 The XSPEC conda package has a bug where `heainit.sh` points to a non-existent
 `BUILD_DIR` path and uses `$CONDA_PREFIX` which resolves incorrectly during
 post-link scripts. Fix both issues by hardcoding the correct path:
-
+For Local:
 ```bash
 sed -i \
   's|export HEADAS=$CONDA_PREFIX/heasoft|export HEADAS=/home/YOUR_USERNAME/miniforge3/envs/threeML/heasoft|' \
+  ~/miniforge3/envs/threeML/etc/conda/activate.d/heainit.sh
+
+sed -i \
+  's|$HEADAS/BUILD_DIR/headas-init.sh|$HEADAS/headas-init.sh|' \
+  ~/miniforge3/envs/threeML/etc/conda/activate.d/heainit.sh
+```
+For Distrobox:
+```bash
+sed -i \
+  's|export HEADAS=$CONDA_PREFIX/heasoft|export HEADAS=/home/void/miniforge3/envs/threeML/heasoft|' \
   ~/miniforge3/envs/threeML/etc/conda/activate.d/heainit.sh
 
 sed -i \
