@@ -1,0 +1,64 @@
+Phase 1: Prepare the Host System
+
+Because you are on CachyOS, we need to ensure the daemonless container manager (Podman) and the hardware map (CDI) are set up correctly before we even touch Distrobox or Boxbuddy.
+
+1. Install the core tools natively (Do NOT use Flatpak):
+Bash
+
+sudo pacman -S podman distrobox nvidia-container-toolkit
+
+2. Generate the CDI (Container Device Interface) map:
+This tells Podman exactly how to route your Nvidia GPU into containers.
+Bash
+
+sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
+
+3. Install Boxbuddy natively:
+Use your AUR helper to get the native GUI. Flatpak will block hardware access.
+Bash
+
+paru -S boxbuddy
+
+Phase 2: The "Foolproof" Container Creation
+
+Warning: Do not use the Boxbuddy GUI to create your Nvidia containers. The GUI’s "Nvidia Integration" toggle triggers Distrobox's native --nvidia bash script, which we discovered will permanently freeze on Arch's multilib packages.
+
+Instead, we use Podman's CDI directly in the terminal to silently bypass the bug.
+
+1. Wake up the GPU (The Hybrid Graphics Trick):
+Because your GTX 1650 goes into a deep sleep to save battery, keep it awake during the initial build so Podman can see it. Open a separate terminal and leave this running:
+Bash
+
+watch -n 1 nvidia-smi
+
+2. Create the container (The Bypass Command):
+In your main terminal, run this exact command. Notice we drop the --nvidia flag and pass the CDI device directly to Podman using --additional-flags.
+Bash
+
+distrobox create --name ubuntu-dev --image ubuntu:22.04 --additional-flags "--device=nvidia.com/gpu=all"
+
+3. Enter the container for the first time:
+While your watch command is still running in the background, complete the final setup phase by entering the container:
+Bash
+
+distrobox enter ubuntu-dev
+
+Once you see the green Ubuntu prompt, you can close the terminal running the watch command. The setup is permanently finished.
+Phase 3: Post-Install Quality of Life Fixes
+
+Because Distrobox shares your CachyOS home folder with the Ubuntu container, your fish shell will try to load CachyOS-specific files that don't exist inside Ubuntu.
+
+1. Fix the Fish Config Error:
+From either your host or inside the container, open your fish config:
+Bash
+
+nano ~/.config/fish/config.fish
+
+Find the line that says source /usr/share/cachyos-fish-config/cachyos-config.fish and wrap it in an if statement so it only loads if the file actually exists:
+Bash
+
+if test -f /usr/share/cachyos-fish-config/cachyos-config.fish
+    source /usr/share/cachyos-fish-config/cachyos-config.fish
+end
+
+Save (Ctrl+O, Enter) and exit (Ctrl+X).
