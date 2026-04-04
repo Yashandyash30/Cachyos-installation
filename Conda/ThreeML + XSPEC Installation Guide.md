@@ -1,168 +1,122 @@
-# ThreeML + XSPEC Installation Guide (Arch/CachyOS)
+# Miniforge Installation & Setup Guide (Arch/CachyOS)
 
-> This guide installs XSPEC via the HEASARC conda channel and ThreeML via the official threeML channel, fully isolated from system updates.
-
----
-
-## Prerequisites
-
-- miniforge3 or miniconda3 installed
-- Using **bash** (not fish) for all conda commands
-- Internet access
+> This guide installs Miniforge entirely in user space, providing both `conda` and the faster `mamba` solver, correctly initialized for both Bash and Fish shells.
 
 ---
 
-## Step 1: Start a Bash Session
+## Phase 1: Installation
+
+```bash
+# Download the installer
+wget "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh"
+
+# Run the installer
+bash Miniforge3-Linux-x86_64.sh
+```
+
+Navigate the prompts:
+
+- Press `Enter` to read the license, or `q` to skip
+- Type `yes` to accept
+- Press `Enter` to accept the default install path (`~/miniforge3`)
+- When asked **"Do you wish the installer to initialize Miniforge3?"** — type `yes`
+
+---
+
+## Phase 2: Shell Initialization
+
+Initialization injects a small script into your shell config so your terminal recognizes `mamba` and `conda` commands.
+
+### Bash
+
+```bash
+~/miniforge3/bin/conda init bash
+```
+
+Close and reopen your terminal. You should see `(base)` in your prompt.
+
+---
+
+### Fish (Required — Fish is not initialized automatically)
+
+Run this from inside a bash session:
 
 ```bash
 bash
+conda init fish
+exit
 ```
 
-> All following commands must be run in bash, not fish.
+Reload the Fish config:
+
+```fish
+source ~/.config/fish/config.fish
+```
+
+If `mamba activate <env>` still throws an error, run this extra step:
+
+```fish
+mamba shell init --shell fish --root-prefix /home/void/miniforge3
+source ~/.config/fish/config.fish
+```
+
+You should now see `(base)` in your Fish prompt and both `conda` and `mamba` will work directly without switching to bash.
 
 ---
 
-## Step 2: Clean Up Any Previous Failed Attempts
+## Phase 3: Channel Priority (Critical)
+
+Astrophysics software mixes Python wrappers with heavy C and Fortran binaries. Mixing packages from `defaults` and `conda-forge` channels breaks environments. This step enforces strict priority so mamba always pulls from conda-forge.
 
 ```bash
-conda deactivate
-rm -rf ~/miniforge3/envs/threeML   # adjust path if using miniconda3
+# Set conda-forge as top priority channel
+conda config --add channels conda-forge
+
+# Enforce strict priority
+conda config --set channel_priority strict
 ```
+
+Verify it worked:
+
+```bash
+conda config --show channel_priority
+# Expected output: channel_priority: strict
+```
+
+> **Why strict matters:** If a package exists in both `defaults` and `conda-forge`, strict priority forces mamba to always use the `conda-forge` version — preventing ABI mismatches when building astronomy tools.
 
 ---
 
-## Step 3: Create the Environment with XSPEC
+## Phase 4: Daily Workflow
 
-```bash
-conda create -n threeML \
-  -c https://heasarc.gsfc.nasa.gov/FTP/software/conda/ \
-  -c conda-forge xspec
-```
+> Because `conda-forge` is now your strict default, you no longer need to type `-c conda-forge` in every command.
 
-> HEASoft + XSPEC install inside the env at `~/miniforge3/envs/threeML/heasoft/`. No separate HEASoft install is needed.
-
----
-
-## Step 4: Fix the Broken heainit.sh ⚠️ CRITICAL
-
-The XSPEC conda package has a known bug where `heainit.sh` points to a non-existent `BUILD_DIR` path and uses `$CONDA_PREFIX` which resolves incorrectly during post-link scripts. **This fix must be reapplied every time XSPEC is updated or reinstalled.**
-
-**For local install** — replace `YOUR_USERNAME` with your actual username (run `whoami` if unsure):
-
-```bash
-sed -i \
-  's|export HEADAS=$CONDA_PREFIX/heasoft|export HEADAS=/home/YOUR_USERNAME/miniforge3/envs/threeML/heasoft|' \
-  ~/miniforge3/envs/threeML/etc/conda/activate.d/heainit.sh
-
-sed -i \
-  's|$HEADAS/BUILD_DIR/headas-init.sh|$HEADAS/headas-init.sh|' \
-  ~/miniforge3/envs/threeML/etc/conda/activate.d/heainit.sh
-```
-
-**For Distrobox:**
-
-```bash
-sed -i \
-  's|export HEADAS=$CONDA_PREFIX/heasoft|export HEADAS=/home/void/miniforge3/envs/threeML/heasoft|' \
-  ~/miniforge3/envs/threeML/etc/conda/activate.d/heainit.sh
-
-sed -i \
-  's|$HEADAS/BUILD_DIR/headas-init.sh|$HEADAS/headas-init.sh|' \
-  ~/miniforge3/envs/threeML/etc/conda/activate.d/heainit.sh
-```
-
-Verify the fix looks correct:
-
-```bash
-cat ~/miniforge3/envs/threeML/etc/conda/activate.d/heainit.sh
-```
-
-Expected output:
-
-```bash
-#!/bin/bash
-export HEADAS=/home/YOUR_USERNAME/miniforge3/envs/threeML/heasoft
-echo "activating heasoft in $HEADAS"
-source $HEADAS/headas-init.sh
-```
+| Task | Command |
+|---|---|
+| Create a new environment | `mamba create -n my_env python=3.11 numpy scipy astropy` |
+| Activate an environment | `mamba activate my_env` |
+| Deactivate (return to base) | `mamba deactivate` |
+| List all environments | `mamba env list` |
+| Delete a broken environment | `mamba env remove -n my_env` |
 
 ---
 
-## Step 5: Fix the conda-meta History File
+## Fix: "terminals database is inaccessible" Warning
 
-Only needed if conda doesn't recognize the env (`DirectoryNotACondaEnvironmentError`):
+This harmless warning appears when bash is launched inside a Fish session and can't resolve the terminfo database correctly. It does not affect conda or any science tools — just an annoyance.
+
+### Bash (Permanent Fix)
 
 ```bash
-mkdir -p ~/miniforge3/envs/threeML/conda-meta
-echo "# Created by manual fix" > ~/miniforge3/envs/threeML/conda-meta/history
+echo 'export TERM=xterm-256color' >> ~/.bashrc
+source ~/.bashrc
 ```
 
----
+### Fish (Permanent Fix)
 
-## Step 6: Activate and Verify XSPEC
-
-```bash
-conda activate threeML
-echo $HEADAS
-xspec --version
-```
-
-Expected output:
-- `$HEADAS` prints `/home/YOUR_USERNAME/miniforge3/envs/threeML/heasoft`
-- XSPEC launches and prints version (12.15.1 or newer)
-
----
-
-## Step 7: Install Python 3.11 + ThreeML
-
-```bash
-conda install -c conda-forge python=3.11
-conda install -c threeml -c conda-forge astromodels threeml
-```
-
-> If the `ucx` error fires during either install, reapply the Step 4 fix and retry.
-
----
-
-## Step 8: Verify ThreeML Works
-
-```bash
-python -c "import threeML; print(threeML.__version__)"
-python -c "import astromodels; print('astromodels ok')"
-```
-
-Expected output: version number (e.g. `2.5.0`) and `astromodels ok`.
-
-> WARNING messages about naima, GSL, ebltable etc. are normal — they are optional packages, not errors.
-
----
-
-## Step 9: Set Performance Environment Variables
-
-```bash
-conda env config vars set OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1
-conda deactivate && conda activate threeML
-```
-
----
-
-## Step 10: Set Up Jupyter Kernel for VS Code
-
-```bash
-conda install -c conda-forge ipykernel
-python -m ipykernel install --user --name threeML --display-name "Python (threeML)"
-```
-
-> In VS Code: open any `.ipynb` → kernel picker (top right) → **Python (threeML)**.
-
----
-
-## Daily Usage
-
-```bash
-bash                        # if using fish shell
-conda activate threeML
-python your_script.py       # or open VS Code and select the kernel
+```fish
+echo 'set -x TERM xterm-256color' >> ~/.config/fish/config.fish
+source ~/.config/fish/config.fish
 ```
 
 ---
@@ -171,77 +125,9 @@ python your_script.py       # or open VS Code and select the kernel
 
 | Error | Fix |
 |---|---|
-| `BUILD_DIR/headas-init.sh: No such file or directory` | Reapply Step 4 fix |
-| `DirectoryNotACondaEnvironmentError` | Apply Step 5 fix |
-| `ucx post-link script failed` | Reapply Step 4 fix, then retry the install |
-| `xspec: command not found` in fish | Run `bash` first, then `conda activate threeML` |
-| `$HEADAS` is empty | Reapply Step 4, then `conda deactivate && conda activate threeML` |
-
----
-
-## Appendix: Distrobox Bridge Kernel for VS Code
-
-> Only needed if you want to run ThreeML inside a Distrobox container while using VS Code on the host. Not required for terminal-based analysis.
-
-### Overview
-
-When using an isolated Distrobox container, standard kernel installation commands fail to communicate with host applications. This bridge installs the kernel engine inside the container but places the connection map on the host.
-
-### Phase 1: Inside the Container
-
-```bash
-# 1. Enter the container
-distrobox enter astro-box
-
-# 2. Activate the environment
-conda activate threeML
-# If conda activate doesn't work, run 'bash' first and retry
-
-# 3. Install the kernel engine
-mamba install -c conda-forge ipykernel
-
-# 4. Exit the container
-exit
-```
-
-### Phase 2: On the Host System
-
-```bash
-# 1. Create the kernel directory
-mkdir -p ~/.local/share/jupyter/kernels/threeml-distrobox
-
-# 2. Create the configuration file
-nano ~/.local/share/jupyter/kernels/threeml-distrobox/kernel.json
-```
-
-Paste the following — the path must be the container-side path, not the host path:
-
-```json
-{
-  "argv": [
-    "distrobox",
-    "enter",
-    "astro-box",
-    "--",
-    "/home/void/miniforge3/envs/threeML/bin/python",
-    "-m",
-    "ipykernel_launcher",
-    "-f",
-    "{connection_file}"
-  ],
-  "display_name": "3ML (Distrobox GPU)",
-  "language": "python"
-}
-```
-
-Save and exit: `Ctrl+O` → `Enter` → `Ctrl+X`.
-
-### Phase 3: Connect in VS Code
-
-1. Open VS Code on the host
-2. Open any `.ipynb` notebook
-3. Click the **Kernel Picker** (top right)
-4. Select **Jupyter Kernel** (not "Python Environments")
-5. Choose **3ML (Distrobox GPU)**
-
-> If the kernel does not appear, press `Ctrl+Shift+P` → `Developer: Reload Window` and check again.
+| `conda: command not found` in bash | Run `~/miniforge3/bin/conda init bash` then reopen terminal |
+| `mamba: command not found` in fish | Run `conda init fish` from bash, then `source ~/.config/fish/config.fish` |
+| `mamba activate` fails in fish | Run `mamba shell init --shell fish --root-prefix /home/void/miniforge3` then `source ~/.config/fish/config.fish` |
+| `(base)` not showing in prompt | Close terminal completely and reopen — do not just run `source` |
+| Two conda installs conflicting | Run `which mamba` — if it points to `miniconda3`, remove it: `rm -rf ~/miniconda3` |
+| `terminals database is inaccessible` | Apply the TERM fix above for your shell |
