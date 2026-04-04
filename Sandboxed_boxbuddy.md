@@ -120,7 +120,7 @@ source ~/.bashrc
 You should now see `(base)` next to your prompt! You have successfully built a totally isolated, GPU-accelerated environment. You can install your astrophysics libraries, compile your scripts, and run your data analysis without any fear of breaking CachyOS.
 ---
 
-# The Permanent Fix (The Fish Shell Shortcut)
+## The Permanent Fix (The Fish Shell Shortcut)
 
 Since you are using `fish` on your CachyOS host, you shouldn't have to open two terminal windows every time you want to work on your thesis. We can create a quick function that automatically pings the GPU to wake it up a split-second before entering the container.
 
@@ -132,8 +132,107 @@ function astro
     # Enter the container
     distrobox enter astro-box
 end
-```
+
 # Save the function permanently
 funcsave astro
+```
+---
+This guide ensures you can seamlessly use your native CachyOS applications (like VS Code or Kate) to edit files while working inside your isolated Ubuntu container.
 
+Since you are managing complex data for your **Gamma-Ray Burst (GRB)** and **Supernova** research, being able to quickly "pop out" a text file into a GUI editor is a massive workflow improvement.
 
+---
+
+# Guide: Accessing Host Editors from Distrobox
+
+## Overview
+
+Because your `astro-box` is an isolated environment, it does not "see" the graphical applications installed on your CachyOS host. We use the built-in `distrobox-host-exec` tool to create a bridge between the container terminal and your desktop editors.
+
+---
+
+## Method 1: The One-Off Command
+
+If you only need to open a file occasionally, use the full command prefix. This works for any application installed on your host (e.g., `code`, `kate`, `vlc`, `firefox`).
+
+**Inside the container:**
+
+```bash
+distrobox-host-exec code path/to/your_script.py
+distrobox-host-exec kate research_notes.txt
+
+```
+
+---
+
+## Method 2: Permanent Aliases (Recommended)
+
+To make this feel native, you should create aliases. This allows you to simply type `code` or `kate` exactly like you do on your main system.
+
+### A. For Fish Shell Users
+
+Fish makes this incredibly easy because it can save functions permanently without manual file editing.
+
+**Inside the container:**
+
+```code snippet
+# Create an alias for VS Code
+alias code="distrobox-host-exec code"
+funcsave code
+
+# Create an alias for Kate (KDE Editor)
+alias kate="distrobox-host-exec kate"
+funcsave kate
+
+```
+
+### B. For Bash or Zsh Users
+
+If your container is set to use Bash or Zsh, you must manually add the aliases to your configuration file.
+
+**1. Open the config file inside the container:**
+
+```bash
+nano ~/.bashrc  # Or ~/.zshrc if using Zsh
+
+```
+
+**2. Scroll to the bottom and paste:**
+
+```bash
+# Bridge to CachyOS Host applications
+alias code="distrobox-host-exec code"
+alias kate="distrobox-host-exec kate"
+alias kwrite="distrobox-host-exec kwrite"
+
+```
+
+**3. Save and reload:**
+Press `Ctrl+O`, `Enter`, `Ctrl+X`. Then run:
+
+```bash
+source ~/.bashrc  # Or source ~/.zshrc
+
+```
+
+---
+
+## ⚠️ Important: The Isolation Reminder
+
+Because we are using a **sandboxed home directory**, the `~/.bashrc` or `~/.config/fish/` files you edit inside the container are physically located on your host at:
+`~/.local/share/astro-container-home/`
+
+Editing your regular CachyOS `.bashrc` will **not** affect the container. You must perform these steps while active inside the `astro-box` terminal.
+
+---
+
+## Verification
+
+To test your new setup, simply type this inside your container:
+
+```bash
+code .
+
+```
+
+If your native VS Code window opens and shows your container's current directory, the bridge is successfully established! You can now edit your GRB analysis scripts with full GUI support while keeping the math isolated in your Ubuntu bubble.
