@@ -16,8 +16,12 @@ cd ~/Downloads/Programmes
 # Download the Linux 64-bit tarball
 wget https://fermi.gsfc.nasa.gov/ssc/data/analysis/rmfit/rmfit_v432_linux64.tar.gz
 
+# If it fails manually download from here
+https://fermi.gsfc.nasa.gov/ssc/data/p7rep/analysis/rmfit/rmfit_v432_64bit.tar.gz
+
+
 # Extract it (this creates the rmfit_v432 folder)
-tar -zxvf rmfit_v432_linux64.tar.gz
+tar -zxvf rmfit_v432_64bit.tar.gz
 ```
 
 ## Phase 2: Enter the Distrobox Container
