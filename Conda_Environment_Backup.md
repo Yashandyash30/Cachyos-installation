@@ -25,9 +25,20 @@ dependencies:
 
 ---
 
-## Step 1: Export All Environments
+## Step 1: Create a Dedicated Backup Folder
 
-Run these from your host terminal in bash:
+Keep all `.yml` files in one place so they don't get lost among home directory clutter:
+
+```bash
+mkdir -p ~/conda-backups
+cd ~/conda-backups
+```
+
+---
+
+## Step 2: Export All Environments
+
+Run these from inside `~/conda-backups`:
 
 ```bash
 bash   # if using fish shell
@@ -36,6 +47,16 @@ mamba env export -n henv     > henv.yml
 mamba env export -n fermi    > fermi.yml
 mamba env export -n threeML  > threeML.yml
 mamba env export -n pyraf    > pyraf.yml
+```
+
+Your backups will be saved at:
+
+```
+~/conda-backups/
+├── henv.yml
+├── fermi.yml
+├── threeML.yml
+└── pyraf.yml
 ```
 
 ---
@@ -58,7 +79,7 @@ If an environment ever breaks beyond repair, do not attempt to fix it. Remove it
 
 ```bash
 mamba env remove -n henv
-mamba env create -f henv.yml
+mamba env create -f ~/conda-backups/henv.yml
 ```
 
 Repeat with the relevant `.yml` for whichever environment broke.
@@ -81,7 +102,7 @@ Repeat with the relevant `.yml` for whichever environment broke.
 Re-export your environments after any significant update so the backup stays current:
 
 ```bash
-mamba env export -n henv > henv.yml
+mamba env export -n henv > ~/conda-backups/henv.yml
 ```
 
 Do this especially after updating HEASoft, Fermitools, or ThreeML, as those are the most likely to receive channel updates.
