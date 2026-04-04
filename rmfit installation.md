@@ -79,7 +79,7 @@ Because rmfit requires specific environment variables and directory locations, c
 If you are already inside the container and want to launch it:
 
 ```bash
-echo 'alias rmfit="cd ~/Downloads/Programmes/rmfit_v432 && export IDL_DIR=\
+echo 'alias rmfit="cd ~/Downloads/Programmes/rmfit_v432 && export IDL_DIR=\$PWD/idl81 && ./idl81/bin/idl -rt=rmfit.sav"
 ```
 Outside the Container (CachyOS Host / Fish Shell):
 If you want to be able to type rmfit directly into your main host terminal and have it automatically wake up the container, set the variables, and launch the GUI, run this in your Fish shell:
