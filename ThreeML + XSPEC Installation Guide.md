@@ -152,6 +152,111 @@ python -m ipykernel install --user --name threeML --display-name "Python (threeM
 In VS Code: open any `.ipynb` → kernel picker (top right) → **Python (threeML)**.
 
 ---
+I am thrilled that the window reload did the trick! Sometimes VS Code just needs a quick tap on the shoulder to notice new files on the hard drive.
+
+Since this specific "Bridge Kernel" method is the absolute best way to use native CachyOS editors with a secure, GPU-accelerated astrophysics container, having it documented is a great idea.
+
+Here is the complete, start-to-finish markdown guide for setting up the Distrobox Bridge Kernel. You can save this as `distrobox-jupyter-kernel-guide.md`.
+
+---
+
+
+# Distrobox Bridge Kernel Guide for Jupyter / VS Code
+
+## Overview
+When using an isolated Distrobox container (sandboxed home directory), standard kernel installation commands (`python -m ipykernel install`) fail to communicate with host applications. 
+
+To use a native host editor (like VS Code on CachyOS) while executing code inside the container, we must manually build a "Bridge Kernel." This setup installs the mathematical engine inside the container, but places the connection map on the host.
+
+---
+
+## Phase 1: Fuel the Engine (Inside the Container)
+The container environment must have `ipykernel` installed so it knows how to receive code from the host editor.
+
+**1. Enter your isolated container:**
+```bash
+distrobox enter astro-box
+
+```
+
+**2. Activate your target environment:**
+
+```bash
+conda activate threeML
+
+```
+If conda activate doesnt work run 'bash' and then retry
+
+**3. Install the Jupyter kernel engine:**
+
+```bash
+mamba install -c conda-forge ipykernel
+
+```
+
+**4. Exit the container:**
+
+```bash
+exit
+
+```
+
+---
+
+## Phase 2: Build the Bridge (On the Host System)
+
+You must tell your native Jupyter/VS Code exactly how to route the code through the container wall. Do this strictly on your host machine.
+
+**1. Create the custom kernel directory on your host:**
+
+```bash
+mkdir -p ~/.local/share/jupyter/kernels/threeml-distrobox
+
+```
+
+**2. Create the configuration file:**
+
+```bash
+nano ~/.local/share/jupyter/kernels/threeml-distrobox/kernel.json
+
+```
+
+**3. Paste the routing configuration:**
+*Note: The path in this JSON must be the "illusion" path (how the container sees its own hard drive), NOT the path on your host.*
+
+```json
+{
+ "argv": [
+  "distrobox",
+  "enter",
+  "astro-box",
+  "--",
+  "/home/void/miniforge3/envs/threeML/bin/python",
+  "-m",
+  "ipykernel_launcher",
+  "-f",
+  "{connection_file}"
+ ],
+ "display_name": "3ML (Distrobox GPU)",
+ "language": "python"
+}
+
+```
+
+*Save and exit Nano (Ctrl+O, Enter, Ctrl+X).*
+
+---
+
+## Phase 3: Connect and Execute
+
+1. Open VS Code or your local JupyterLab on the host system.
+2. Open any `.ipynb` notebook.
+3. Click the **Kernel Picker** in the top right.
+4. Select **Jupyter Kernel** (do *not* select "Python Environments").
+5. Choose **3ML (Distrobox GPU)**.
+
+*(Troubleshooting: If the kernel does not appear in VS Code, press Ctrl + Shift + P, type Developer: Reload Window, and check the menu again).*
+---
 
 ## Daily usage
 
