@@ -31,7 +31,24 @@ mkdir -p ~/.local/share/astro-container-home
 ---
 
 ## Phase 2: Create the Sandboxed Container
+Generate the CDI (Container Device Interface) map:
+This tells Podman exactly how to route your Nvidia GPU into containers.
 
+```bash
+sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
+```
+The "Foolproof" Container Creation
+
+Warning: Do not use the Boxbuddy GUI to create your Nvidia containers. The GUI’s "Nvidia Integration" toggle triggers Distrobox's native --nvidia bash script, which we discovered will permanently freeze on Arch's multilib packages.
+
+Instead, we use Podman's CDI directly in the terminal to silently bypass the bug.
+
+Wake up the GPU (The Hybrid Graphics Trick):
+Because your GTX 1650 goes into a deep sleep to save battery, keep it awake during the initial build so Podman can see it. Open a separate terminal and leave this running:
+
+```bash
+watch -n 1 nvidia-smi
+```
 We will use the `--home` flag to point the container to the new directory, and the `--additional-flags` argument to ensure your Nvidia GPU is seamlessly passed through without triggering the Arch multilib bug.
 
 *Note: If your GPU is asleep, remember to run watch -n 1 nvidia-smi in a second terminal before running this command.*
