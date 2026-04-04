@@ -60,7 +60,36 @@ Make sure your Mamba environment is active, then launch the wrapper. It will aut
 ```bash
 pyraf
 ```
+---
 
+## Fixing `mamba activate pyraf` in `Fish` shell:
+### Option 1: The One-Second Fix (Use Conda)
+
+Since Mamba is just a fast downloader and Conda is already awake and managing your environments, you can simply swap the word `mamba` for `conda` to activate it instantly:
+
+```bash
+conda activate pyraf
+
+```
+
+*(Remember, activating an environment with Conda takes the exact same amount of time as Mamba. You only really need Mamba when installing new packages!)*
+
+### Option 2: Fix Mamba Permanently
+
+If you want to train your muscle memory to just use `mamba` for everything, you need to initialize Mamba for this specific Fish shell.
+
+To initialize Mamba here, run this:
+
+```bash
+# Initialize Mamba for Fish
+mamba shell init --shell fish
+
+# Reload your shell to apply it
+source ~/.config/fish/config.fish
+
+```
+
+After doing that, `mamba activate pyraf` will work perfectly on your host system from now on.
 ---
 
 ## AUR Package Health Check
