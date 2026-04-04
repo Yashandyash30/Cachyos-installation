@@ -91,7 +91,7 @@ If you want to be able to type rmfit directly into your main host terminal and h
 
 ```bash
 function rmfit
-    # Tells Distrobox to enter 'void', navigate to the folder, set the IDL path, and run the VM
+    # Tells Distrobox to enter 'ubuntu', navigate to the folder, set the IDL path, and run the VM
     distrobox enter ubuntu -- bash -c "cd ~/Downloads/Programmes/rmfit_v432 && export IDL_DIR=\$PWD/idl81 && ./idl81/bin/idl -rt=rmfit.sav"
 end
 
