@@ -26,15 +26,13 @@ tar -zxvf rmfit_v432_64bit.tar.gz
 
 ## Phase 2: Enter the Distrobox Container
 To install boxbuddy
-```bash
-paru -S boxbuddy
-```
+See boxbuddy installation steps in this reopository.
 
 To prevent these ancient dependencies from breaking your CachyOS host, do the actual installation inside an Ubuntu container (like your void container).
 
 ```bash
 # Enter your Ubuntu Distrobox container
-distrobox enter void
+distrobox enter ubuntu
 ```
 
 Once inside the container, install the basic dependencies that still exist in the modern Ubuntu repositories:
