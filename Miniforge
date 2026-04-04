@@ -38,6 +38,12 @@ Bash
 # For Zsh users:
 ~/miniforge3/bin/conda init zsh
 
+Zsh steup
+While you are still sitting at that (base) void@void:/run/host/home/void$ prompt, run this instead:
+conda init fish
+exit
+source ~/.config/fish/config.fish
+
 3. Apply the Changes:
 Always completely close your terminal and open a new one to apply the initialization. You should now see (base) next to your prompt.
 Phase 3: Channel Priority (The Critical Step)
