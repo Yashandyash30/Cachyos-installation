@@ -118,3 +118,22 @@ source ~/.bashrc
 ```
 
 You should now see `(base)` next to your prompt! You have successfully built a totally isolated, GPU-accelerated environment. You can install your astrophysics libraries, compile your scripts, and run your data analysis without any fear of breaking CachyOS.
+---
+
+# The Permanent Fix (The Fish Shell Shortcut)
+
+Since you are using `fish` on your CachyOS host, you shouldn't have to open two terminal windows every time you want to work on your thesis. We can create a quick function that automatically pings the GPU to wake it up a split-second before entering the container.
+
+Run this in your main CachyOS terminal (outside the container):
+```bash
+function astro
+    # Ping the GPU to wake it up silently
+    nvidia-smi > /dev/null 2>&1
+    # Enter the container
+    distrobox enter astro-box
+end
+```
+# Save the function permanently
+funcsave astro
+
+
