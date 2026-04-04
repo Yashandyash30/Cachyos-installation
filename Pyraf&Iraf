@@ -46,4 +46,28 @@ Maintenance Tips
 
     Updating System IRAF: CachyOS will naturally update the iraf-bin packages when you run a standard system update (paru -Syu).
 
-    Broken Environments: If a future Python update ever breaks your environment, do not attempt to rename or fix it. Run mamba env remove -n pyraf and repeat Steps 2 and 3.
+    
+
+Broken Environments: If a future Python update ever breaks your environment, do not attempt to rename or fix it. Run mamba env remove -n pyraf and repeat Steps 2 and 3.
+Modified Guide for Distrobox (Ubuntu 22.04) — If You Still Want It
+# 1. Create the container
+distrobox create --name iraf-box --image ubuntu:22.04
+distrobox enter iraf-box
+
+# Inside the container:
+# 2. Install IRAF from Ubuntu repos
+sudo apt update
+sudo apt install iraf
+
+# 3. Install mamba
+curl -L https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -o miniforge.sh
+bash miniforge.sh -b -p $HOME/miniforge3
+source $HOME/miniforge3/etc/profile.d/conda.sh
+
+# 4. Create env (same as your guide)
+mamba create -n pyraf -c conda-forge python=3.11 numpy scipy astropy matplotlib ds9
+mamba activate pyraf
+pip install pyraf
+
+# 5. Export the app so it's launchable from host
+distrobox-export --app ds9
