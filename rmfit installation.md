@@ -77,7 +77,13 @@ Because rmfit requires specific environment variables and directory locations, c
 ### Inside the Ubuntu Container (Bash)
 
 If you are already inside the container and want to launch it:
-
+For fish :
+```bash
+alias rmfit="cd ~/Downloads/Programmes/rmfit_v432; and set -x IDL_DIR \$PWD/idl81; and ./idl81/bin/idl -rt=rmfit.sav"
+# Save the function permanently
+funcsave rmfit
+```
+For bash:
 ```bash
 echo 'alias rmfit="cd ~/Downloads/Programmes/rmfit_v432 && export IDL_DIR=\$PWD/idl81 && ./idl81/bin/idl -rt=rmfit.sav"' >> ~/.bashrc
 
@@ -88,11 +94,21 @@ If you want to be able to type rmfit directly into your main host terminal and h
 ```bash
 function rmfit
     # Tells Distrobox to enter 'void', navigate to the folder, set the IDL path, and run the VM
-    distrobox enter void -- bash -c "cd ~/Downloads/Programmes/rmfit_v432 && export IDL_DIR=\$PWD/idl81 && ./idl81/bin/idl -rt=rmfit.sav"
+    distrobox enter ubuntu -- bash -c "cd ~/Downloads/Programmes/rmfit_v432 && export IDL_DIR=\$PWD/idl81 && ./idl81/bin/idl -rt=rmfit.sav"
 end
 
 # Save the function permanently
 funcsave rmfit
+```
+Note (Fix the libXpm.so.4 Error): If typing rmfit throws this error 
+```bash
+/home/void/Downloads/Programmes/rmfit_v432/idl81/bin/bin.linux.x86_64/idl: error while loading shared libraries: libXpm.so.4: cannot open shared object file: No such file or directory 
+```
+still doesnt work Run this again
+
+```bash
+sudo apt update
+sudo apt install libxpm4 libncurses5 libtinfo5 libx11-6 libxext6 libxtst6 libxaw7
 ```
 
 Troubleshooting Note: If the application ever throws an error about libtinfo.so.5 or libncurses.so.5 down the line, it just means you need to reinstall the compatibility layer inside the container: sudo apt install libncurses5 libtinfo5.
