@@ -101,6 +101,26 @@ conda config --show channel_priority
 
 ---
 
+## Fix: "terminals database is inaccessible" Warning
+
+This harmless warning appears when bash is launched inside a Fish session and can't resolve the terminfo database correctly. It does not affect conda or any science tools — just an annoyance.
+
+### Bash (Permanent Fix)
+
+```bash
+echo 'export TERM=xterm-256color' >> ~/.bashrc
+source ~/.bashrc
+```
+
+### Fish (Permanent Fix)
+
+```fish
+echo 'set -x TERM xterm-256color' >> ~/.config/fish/config.fish
+source ~/.config/fish/config.fish
+```
+
+---
+
 ## Troubleshooting
 
 | Error | Fix |
@@ -110,3 +130,4 @@ conda config --show channel_priority
 | `mamba activate` fails in fish | Run `mamba shell init --shell fish --root-prefix /home/void/miniforge3` then `source ~/.config/fish/config.fish` |
 | `(base)` not showing in prompt | Close terminal completely and reopen — do not just run `source` |
 | Two conda installs conflicting | Run `which mamba` — if it points to `miniconda3`, remove it: `rm -rf ~/miniconda3` |
+| `terminals database is inaccessible` | Apply the TERM fix above for your shell |
