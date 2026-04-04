@@ -88,8 +88,8 @@ mamba shell init --shell fish
 source ~/.config/fish/config.fish
 
 ```
-
 After doing that, `mamba activate pyraf` will work perfectly on your host system from now on.
+
 ---
 
 ## AUR Package Health Check
