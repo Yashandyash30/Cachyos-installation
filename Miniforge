@@ -44,6 +44,16 @@ conda init fish
 exit
 source ~/.config/fish/config.fish
 
+If mamba activate <env-name> still give error, run this
+mamba shell init --shell fish --root-prefix /home/void/miniforge3
+
+Then, reload your Fish shell to apply the changes:
+Bash
+
+source ~/.config/fish/config.fish
+
+Now you can run mamba activate threeML flawlessly!
+
 3. Apply the Changes:
 Always completely close your terminal and open a new one to apply the initialization. You should now see (base) next to your prompt.
 Phase 3: Channel Priority (The Critical Step)
