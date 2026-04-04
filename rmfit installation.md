@@ -86,7 +86,21 @@ sudo ln -s libgslcblas.so.0.0.0 libgslcblas.so.0
 sudo ldconfig
 ```
 
-## Phase 5: Create the Launch Shortcuts
+## Phase 5: The Legacy Fortran Fix (libgfortran3)
+rmfit will crash during spectral fitting if it cannot find libgfortran.so.3. Do not symlink this to a modern version, as Fortran ABI changes will cause mathematical errors. Extract it manually:
+```bash
+sudo apt install libquadmath0
+cd /tmp
+wget [http://archive.ubuntu.com/ubuntu/pool/universe/g/gcc-6/libgfortran3_6.4.0-17ubuntu1_amd64.deb](http://archive.ubuntu.com/ubuntu/pool/universe/g/gcc-6/libgfortran3_6.4.0-17ubuntu1_amd64.deb)
+dpkg -x libgfortran3_6.4.0-17ubuntu1_amd64.deb libgfortran_temp
+sudo cp libgfortran_temp/usr/lib/x86_64-linux-gnu/libgfortran.so.3.0.0 /usr/lib/x86_64-linux-gnu/
+cd /usr/lib/x86_64-linux-gnu/
+sudo ln -sf libgfortran.so.3.0.0 libgfortran.so.3
+sudo ldconfig
+rm -rf /tmp/libgfortran_temp /tmp/libgfortran3_6.4.0-17ubuntu1_amd64.deb
+```
+
+## Phase 6: Create the Launch Shortcuts
 
 Because rmfit requires specific environment variables and directory locations, creating a shortcut is the only way to stay sane.
 
