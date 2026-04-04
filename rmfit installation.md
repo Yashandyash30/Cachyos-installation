@@ -1,79 +1,85 @@
-# rmfit Installation Guide for CachyOS
+# rmfit Installation Guide (Arch/CachyOS)
 
-## Overview
+> rmfit is an IDL 8.1 runtime binary that depends on libraries no longer available on modern Linux. This guide uses a surgical extraction method inside a Distrobox Ubuntu container to keep your host system clean.
 
-Since modern Linux distributions have completely abandoned the 32-bit and outdated X11 libraries that IDL 8.1 relies on, this guide uses the "surgical extraction" method to keep your host system clean.
+---
 
-## Phase 1: Download and Extract rmfit
+## Prerequisites
 
-First, grab the software from the Fermi Science Support Center and put it in your preferred directory.
+- Distrobox installed and configured on CachyOS
+- An Ubuntu container running (referred to as `ubuntu` throughout)
+- See BoxBuddy installation steps for GUI-based container management
+
+---
+
+## Phase 1: Download and Extract rmfit (On Host)
 
 ```bash
-# Create your program directory if it doesn't exist
+# Create your program directory
 mkdir -p ~/Downloads/Programmes
 cd ~/Downloads/Programmes
 
 # Download the Linux 64-bit tarball
 wget https://fermi.gsfc.nasa.gov/ssc/data/analysis/rmfit/rmfit_v432_linux64.tar.gz
 
-# If it fails manually download from here
-https://fermi.gsfc.nasa.gov/ssc/data/p7rep/analysis/rmfit/rmfit_v432_64bit.tar.gz
+# If the above fails, use this mirror URL instead
+# https://fermi.gsfc.nasa.gov/ssc/data/p7rep/analysis/rmfit/rmfit_v432_64bit.tar.gz
 
-
-# Extract it (this creates the rmfit_v432 folder)
+# Extract the archive
 tar -zxvf rmfit_v432_64bit.tar.gz
 ```
 
-## Phase 2: Enter the Distrobox Container
-To install boxbuddy
-See boxbuddy installation steps in this reopository.
+---
 
-To prevent these ancient dependencies from breaking your CachyOS host, do the actual installation inside an Ubuntu container (like your void container).
+## Phase 2: Enter the Distrobox Container
 
 ```bash
-# Enter your Ubuntu Distrobox container
 distrobox enter ubuntu
 ```
 
-Once inside the container, install the basic dependencies that still exist in the modern Ubuntu repositories:
+Once inside, install the base dependencies:
 
 ```bash
 sudo apt update
 sudo apt install libxpm4 libncurses5 libtinfo5 libx11-6 libxext6 libxtst6 libxaw7
 ```
 
+---
+
 ## Phase 3: The libXp Surgery
 
-The critical `libXp.so.6` library cannot be installed via apt anymore because of the missing multiarch-support package. You have to manually download the old Debian package, extract the library file, and drop it into the system.
+`libXp.so.6` cannot be installed via apt due to the missing multiarch-support package. Extract it manually.
 
-Run these commands strictly inside your Distrobox container:
+> All commands below must be run **inside the Distrobox container**.
 
 ```bash
 # 1. Move to a temporary folder
 cd /tmp
 
-# 2. Download the ancient Debian package
+# 2. Download the archived Debian package
 wget http://archive.debian.org/debian/pool/main/libx/libxp/libxp6_1.0.2-2_amd64.deb
 
-# 3. Unpack the contents without installing
+# 3. Unpack without installing
 dpkg -x libxp6_1.0.2-2_amd64.deb libxp_temp
 
-# 4. Copy the shared objects (.so files) into the system library folder
+# 4. Copy the shared objects into the system library folder
 sudo cp -d libxp_temp/usr/lib/x86_64-linux-gnu/libXp.so.6* /usr/lib/x86_64-linux-gnu/
 
-# 5. Tell the system to rescan the libraries
+# 5. Rescan system libraries
 sudo ldconfig
 
-# 6. Clean up the temp files
+# 6. Clean up
 rm -rf libxp_temp libxp6_1.0.2-2_amd64.deb
 ```
+
+---
+
 ## Phase 4: Mathematical Library Linking (GSL)
 
-Even with the graphics libraries installed, rmfit will fail during spectral fitting if it cannot find the GNU Scientific Library. Since modern Ubuntu uses a newer version than what rmfit expects, we must link them manually.
+Modern Ubuntu uses a newer GSL version than rmfit expects. Link them manually inside the container.
 
-Run these commands inside your container:
 ```bash
-# 1. Install the modern GSL packages
+# 1. Install modern GSL packages
 sudo apt update
 sudo apt install libgsl-dev libgslcblas0
 
@@ -82,63 +88,80 @@ cd /usr/lib/x86_64-linux-gnu/
 sudo ln -s libgsl.so.27 libgsl.so.0
 sudo ln -s libgslcblas.so.0.0.0 libgslcblas.so.0
 
-# 3. Update the system library cache
+# 3. Update the library cache
 sudo ldconfig
 ```
 
+---
+
 ## Phase 5: The Legacy Fortran Fix (libgfortran3)
-rmfit will crash during spectral fitting if it cannot find libgfortran.so.3. Do not symlink this to a modern version, as Fortran ABI changes will cause mathematical errors. Extract it manually:
+
+> ⚠️ **Do not symlink libgfortran3 to a modern version.** Fortran ABI changes between versions cause silent numerical errors in spectral fitting, not just crashes. Always extract the exact version below.
+
 ```bash
 sudo apt install libquadmath0
 cd /tmp
-wget [http://archive.ubuntu.com/ubuntu/pool/universe/g/gcc-6/libgfortran3_6.4.0-17ubuntu1_amd64.deb](http://archive.ubuntu.com/ubuntu/pool/universe/g/gcc-6/libgfortran3_6.4.0-17ubuntu1_amd64.deb)
+
+wget http://archive.ubuntu.com/ubuntu/pool/universe/g/gcc-6/libgfortran3_6.4.0-17ubuntu1_amd64.deb
 dpkg -x libgfortran3_6.4.0-17ubuntu1_amd64.deb libgfortran_temp
+
 sudo cp libgfortran_temp/usr/lib/x86_64-linux-gnu/libgfortran.so.3.0.0 /usr/lib/x86_64-linux-gnu/
+
 cd /usr/lib/x86_64-linux-gnu/
 sudo ln -sf libgfortran.so.3.0.0 libgfortran.so.3
 sudo ldconfig
+
 rm -rf /tmp/libgfortran_temp /tmp/libgfortran3_6.4.0-17ubuntu1_amd64.deb
 ```
 
-## Phase 6: Create the Launch Shortcuts
+---
 
-Because rmfit requires specific environment variables and directory locations, creating a shortcut is the only way to stay sane.
+## Phase 6: Create Launch Shortcuts
 
-### Inside the Ubuntu Container (Bash)
+### Inside the Container (Bash)
 
-If you are already inside the container and want to launch it:
-For fish :
-```bash
-alias rmfit="cd ~/Downloads/Programmes/rmfit_v432; and set -x IDL_DIR \$PWD/idl81; and ./idl81/bin/idl -rt=rmfit.sav"
-# Save the function permanently
-funcsave rmfit
-```
-For bash:
 ```bash
 echo 'alias rmfit="cd ~/Downloads/Programmes/rmfit_v432 && export IDL_DIR=\$PWD/idl81 && ./idl81/bin/idl -rt=rmfit.sav"' >> ~/.bashrc
-
 ```
-Outside the Container (CachyOS Host / Fish Shell):
-If you want to be able to type rmfit directly into your main host terminal and have it automatically wake up the container, set the variables, and launch the GUI, run this in your Fish shell:
+
+### Inside the Container (Fish)
+
+```bash
+alias rmfit="cd ~/Downloads/Programmes/rmfit_v432; and set -x IDL_DIR \$PWD/idl81; and ./idl81/bin/idl -rt=rmfit.sav"
+funcsave rmfit
+```
+
+### From the CachyOS Host (Fish — Recommended)
+
+Type `rmfit` directly from your host terminal and have it automatically enter the container, set variables, and launch the GUI:
 
 ```bash
 function rmfit
-    # Tells Distrobox to enter 'ubuntu', navigate to the folder, set the IDL path, and run the VM
     distrobox enter ubuntu -- bash -c "cd ~/Downloads/Programmes/rmfit_v432 && export IDL_DIR=\$PWD/idl81 && ./idl81/bin/idl -rt=rmfit.sav"
 end
 
-# Save the function permanently
 funcsave rmfit
 ```
-Note (Fix the libXpm.so.4 Error): If typing rmfit throws this error 
-```bash
-/home/void/Downloads/Programmes/rmfit_v432/idl81/bin/bin.linux.x86_64/idl: error while loading shared libraries: libXpm.so.4: cannot open shared object file: No such file or directory 
-```
-still doesnt work Run this again
 
-```bash
-sudo apt update
-sudo apt install libxpm4 libncurses5 libtinfo5 libx11-6 libxext6 libxtst6 libxaw7
-```
+---
 
-Troubleshooting Note: If the application ever throws an error about libtinfo.so.5 or libncurses.so.5 down the line, it just means you need to reinstall the compatibility layer inside the container: sudo apt install libncurses5 libtinfo5.
+## Troubleshooting
+
+| Error | Fix |
+|---|---|
+| `libXpm.so.4: cannot open shared object file` | Run `sudo apt install libxpm4 libncurses5 libtinfo5 libx11-6 libxext6 libxtst6 libxaw7` inside the container |
+| `libtinfo.so.5` or `libncurses.so.5` errors | Run `sudo apt install libncurses5 libtinfo5` inside the container |
+
+---
+
+## Why Distrobox Is Required for rmfit
+
+Unlike the other tools in this stack, rmfit has no conda package, no PyPI package, and no clean installation path. It is an IDL 8.1 runtime binary from 2013 that depends on libraries removed from all modern Linux systems:
+
+| Library | Status |
+|---|---|
+| `libXp.so.6` | Removed from all modern distros |
+| `libgfortran.so.3` | GCC 6 era Fortran ABI |
+| `libgsl.so.0` | Ancient GSL ABI |
+
+These cannot be solved with conda, mamba, or any environment manager. The Distrobox Ubuntu container is the only clean solution.
