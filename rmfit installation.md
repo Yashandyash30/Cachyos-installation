@@ -67,8 +67,26 @@ sudo ldconfig
 # 6. Clean up the temp files
 rm -rf libxp_temp libxp6_1.0.2-2_amd64.deb
 ```
+## Phase 4: Mathematical Library Linking (GSL)
 
-## Phase 4: Create the Launch Shortcuts
+Even with the graphics libraries installed, rmfit will fail during spectral fitting if it cannot find the GNU Scientific Library. Since modern Ubuntu uses a newer version than what rmfit expects, we must link them manually.
+
+Run these commands inside your container:
+```bash
+# 1. Install the modern GSL packages
+sudo apt update
+sudo apt install libgsl-dev libgslcblas0
+
+# 2. Create compatibility links for the legacy names
+cd /usr/lib/x86_64-linux-gnu/
+sudo ln -s libgsl.so.27 libgsl.so.0
+sudo ln -s libgslcblas.so.0.0.0 libgslcblas.so.0
+
+# 3. Update the system library cache
+sudo ldconfig
+```
+
+## Phase 5: Create the Launch Shortcuts
 
 Because rmfit requires specific environment variables and directory locations, creating a shortcut is the only way to stay sane.
 
