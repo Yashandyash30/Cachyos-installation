@@ -16,8 +16,8 @@
 
 ```bash
 # Create your program directory
-mkdir -p ~/Downloads/Programmes
-cd ~/Downloads/Programmes
+mkdir -p ~/Downloads/Programs
+cd ~/Downloads/Programs
 
 # Download the Linux 64-bit tarball
 wget https://fermi.gsfc.nasa.gov/ssc/data/analysis/rmfit/rmfit_v432_linux64.tar.gz
@@ -121,13 +121,13 @@ rm -rf /tmp/libgfortran_temp /tmp/libgfortran3_6.4.0-17ubuntu1_amd64.deb
 ### Inside the Container (Bash)
 
 ```bash
-echo 'alias rmfit="cd ~/Downloads/Programmes/rmfit_v432 && export IDL_DIR=\$PWD/idl81 && ./idl81/bin/idl -rt=rmfit.sav"' >> ~/.bashrc
+echo 'alias rmfit="cd ~/Downloads/Programs/rmfit_v432 && export IDL_DIR=\$PWD/idl81 && ./idl81/bin/idl -rt=rmfit.sav"' >> ~/.bashrc
 ```
 
 ### Inside the Container (Fish)
 
 ```bash
-alias rmfit="cd ~/Downloads/Programmes/rmfit_v432; and set -x IDL_DIR \$PWD/idl81; and ./idl81/bin/idl -rt=rmfit.sav"
+alias rmfit="cd ~/Downloads/Programs/rmfit_v432; and set -x IDL_DIR \$PWD/idl81; and ./idl81/bin/idl -rt=rmfit.sav"
 funcsave rmfit
 ```
 
@@ -137,7 +137,7 @@ Type `rmfit` directly from your host terminal and have it automatically enter th
 
 ```bash
 function rmfit
-    distrobox enter ubuntu -- bash -c "cd ~/Downloads/Programmes/rmfit_v432 && export IDL_DIR=\$PWD/idl81 && ./idl81/bin/idl -rt=rmfit.sav"
+    distrobox enter ubuntu -- bash -c "cd ~/Downloads/Programs/rmfit_v432 && export IDL_DIR=\$PWD/idl81 && ./idl81/bin/idl -rt=rmfit.sav"
 end
 
 funcsave rmfit
