@@ -183,12 +183,6 @@ BasePill {
                 spacing: Theme.spacingS
                 visible: !root.isVerticalOrientation
                 
-                // --- ADD THESE 3 LINES ---
-                ToolTip.visible: mouseArea.containsMouse
-                ToolTip.text: appText.text + (titleText.text ? " • " + titleText.text : "")
-                ToolTip.delay: 300
-                // -------------------------
-
                 StyledText {
                     id: appText
                     text: {
@@ -250,42 +244,129 @@ BasePill {
     MouseArea {
         id: mouseArea
         anchors.fill: parent
-        hoverEnabled: true  
+        hoverEnabled: true
         acceptedButtons: Qt.NoButton
         onEntered: {
-            if (root.isVerticalOrientation && activeWindow && activeWindow.appId && root.parentScreen) {
+            if (!activeWindow || !root.parentScreen)
+                return;
+
+            const currentScreen = root.parentScreen;
+            const screenX = currentScreen ? currentScreen.x : 0;
+            const screenY = currentScreen ? currentScreen.y : 0;
+            const appName = activeWindow.appId ? Paths.getAppName(activeWindow.appId, activeDesktopEntry) : "";
+            const title = activeWindow.title || "";
+            const tooltipText = appName + (title ? " • " + title : "");
+
+            if (root.isVerticalOrientation && activeWindow.appId) {
                 tooltipLoader.active = true;
                 if (tooltipLoader.item) {
                     const globalPos = mapToGlobal(width / 2, height / 2);
-                    const currentScreen = root.parentScreen;
-                    const screenX = currentScreen ? currentScreen.x : 0;
-                    const screenY = currentScreen ? currentScreen.y : 0;
                     const relativeY = globalPos.y - screenY;
-                    // Add minTooltipY offset to account for top bar
                     const adjustedY = relativeY + root.minTooltipY;
-                    const tooltipX = root.axis?.edge === "left" ? (Theme.barHeight + (barConfig?.spacing ?? 4) + Theme.spacingXS) : (currentScreen.width - Theme.barHeight - (barConfig?.spacing ?? 4) - Theme.spacingXS);
-
-                    const appName = Paths.getAppName(activeWindow.appId, activeDesktopEntry);
-                    const title = activeWindow.title || "";
-                    const tooltipText = appName + (title ? " • " + title : "");
-
+                    const tooltipX = root.axis?.edge === "left"
+                        ? (Theme.barHeight + (barConfig?.spacing ?? 4) + Theme.spacingXS)
+                        : (currentScreen.width - Theme.barHeight - (barConfig?.spacing ?? 4) - Theme.spacingXS);
                     const isLeft = root.axis?.edge === "left";
                     tooltipLoader.item.show(tooltipText, screenX + tooltipX, adjustedY, currentScreen, isLeft, !isLeft);
+                }
+            } else if (!root.isVerticalOrientation) {
+                hoverTooltipLoader.active = true;
+                if (hoverTooltipLoader.item) {
+                    const globalPos = mapToGlobal(width / 2, height / 2);
+                    const relativeX = globalPos.x - screenX;
+                    const isTop = root.axis?.edge !== "bottom";
+                    const tooltipY = isTop
+                        ? (Theme.barHeight + (barConfig?.spacing ?? 4) + Theme.spacingXS)
+                        : (currentScreen.height - Theme.barHeight - (barConfig?.spacing ?? 4) - Theme.spacingXS);
+                    hoverTooltipLoader.item.show(tooltipText, relativeX, screenY + tooltipY, currentScreen);
                 }
             }
         }
         onExited: {
-            if (tooltipLoader.item) {
+            if (tooltipLoader.item)
                 tooltipLoader.item.hide();
-            }
             tooltipLoader.active = false;
+
+            if (hoverTooltipLoader.item)
+                hoverTooltipLoader.item.hide();
+            hoverTooltipLoader.active = false;
         }
     }
 
+    // Vertical bar: standard DankTooltip
     Loader {
         id: tooltipLoader
         active: false
         sourceComponent: DankTooltip {}
+    }
+
+    // Horizontal bar: custom PanelWindow tooltip — same style, no 300px width cap
+    Loader {
+        id: hoverTooltipLoader
+        active: false
+        sourceComponent: Component {
+            PanelWindow {
+                id: hTip
+
+                property string text: ""
+                property real targetX: 0
+                property real targetY: 0
+                property var targetScreen: null
+
+                function show(t, x, y, screen) {
+                    text = t;
+                    targetScreen = screen;
+                    targetX = x;
+                    targetY = y;
+                    visible = true;
+                }
+                function hide() {
+                    visible = false;
+                }
+
+                WlrLayershell.namespace: "dms:tooltip"
+                screen: targetScreen
+                implicitWidth: hTipText.implicitWidth + Theme.spacingM * 2
+                implicitHeight: hTipText.implicitHeight + Theme.spacingS * 2
+                color: "transparent"
+                visible: false
+                WlrLayershell.layer: WlrLayershell.Overlay
+                WlrLayershell.exclusiveZone: -1
+
+                anchors {
+                    top: true
+                    left: true
+                }
+
+                margins {
+                    left: {
+                        const sw = targetScreen?.width ?? Screen.width;
+                        return Math.round(Math.max(Theme.spacingS, Math.min(sw - implicitWidth - Theme.spacingS, targetX - implicitWidth / 2)));
+                    }
+                    top: {
+                        const sh = targetScreen?.height ?? Screen.height;
+                        return Math.round(Math.max(Theme.spacingS, Math.min(sh - implicitHeight - Theme.spacingS, targetY)));
+                    }
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
+                    radius: height / 2
+                    border.width: 1
+                    border.color: Theme.outlineMedium
+
+                    Text {
+                        id: hTipText
+                        anchors.centerIn: parent
+                        text: hTip.text
+                        font.pixelSize: Theme.fontSizeSmall
+                        color: Theme.surfaceText
+                        wrapMode: Text.NoWrap
+                    }
+                }
+            }
+        }
     }
 }
 
