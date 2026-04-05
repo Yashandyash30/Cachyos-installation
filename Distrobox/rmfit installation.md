@@ -117,9 +117,24 @@ rm -rf /tmp/libgfortran_temp /tmp/libgfortran3_6.4.0-17ubuntu1_amd64.deb
 ---
 
 ## Phase 6: Create Launch Shortcuts
+Move the files into the Container (Cleaner)
+
+Since rmfit is a legacy program with very specific library requirements, it is actually safer to keep the program files inside the container permanently. That way, your CachyOS host stays clean, and the container holds everything rmfit needs.
+
+Run these commands inside the container to copy the program from your host into the container's private home:
+
+1. Create the Programs folder inside the container's isolated home:
+```bash
+mkdir -p ~/Downloads/Programs
+```
+2. Copy the rmfit folder from your host into the container:
+Bash
+```bash
+cp -r /run/host/home/void/Downloads/Programs/rmfit_v432 ~/Downloads/Programs/
+```
 
 ### Inside the Container (Bash)
-
+```
 ```bash
 echo 'alias rmfit="cd ~/Downloads/Programs/rmfit_v432 && export IDL_DIR=\$PWD/idl81 && ./idl81/bin/idl -rt=rmfit.sav"' >> ~/.bashrc
 ```
