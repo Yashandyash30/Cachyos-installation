@@ -194,3 +194,48 @@ killall xdg-desktop-portal-gtk
 2. **Reboot your system.**
 
 Once you log back in, Dolphin will be perfectly themed with readable text, your right-click "Open With" menu will work dynamically, and your browser's "Save As" dialogs will finally respect your dark system theme!
+
+Yes, you can absolutely make Dolphin the default file manager for the entire system. Because you are on a standalone compositor like Niri, you will need to set this using the standard Linux `xdg-mime` tool, which tells the system how to handle different types of files and directories.
+
+Here is how to route all "Open Folder" or "Show in File Manager" requests (like from your web browser or terminal) to Dolphin.
+
+### 1. Set Dolphin as the Default Directory Handler
+
+The system identifies folders as a MIME type called `inode/directory`. You need to tell the system that Dolphin's `.desktop` file is the master handler for this type.
+
+Run this command in your terminal:
+
+```bash
+xdg-mime default org.kde.dolphin.desktop inode/directory
+
+```
+
+### 2. Verify the Change
+
+To make sure the system registered the change correctly, run the query command:
+
+```bash
+xdg-mime query default inode/directory
+
+```
+
+*If it returns org.kde.dolphin.desktop, you are good to go.*
+
+### 3. Set the Environment Variable (For Stubborn Terminal Apps)
+
+While `xdg-mime` handles 95% of graphical applications (like browsers and Discord), some command-line tools or older scripts look for a specific environment variable to decide which file manager to launch.
+
+To cover all your bases, add the `FILEMANAGER` variable to your Niri configuration so it is applied globally at startup.
+
+Open your `~/.config/niri/config.kdl` and add it to your existing `environment` block so it looks like this:
+
+```code snippet
+environment {
+    QT_QPA_PLATFORMTHEME "qt6ct"
+    QT_STYLE_OVERRIDE "kvantum" 
+    FILEMANAGER "dolphin"
+}
+
+```
+
+Save the file. The next time you log in, absolutely everything on your system will default to Dolphin!
