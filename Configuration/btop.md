@@ -76,9 +76,11 @@ Save and exit (**Ctrl+O → Enter**, then **Ctrl+X**).
 > **KDE Plasma note:** If the fix doesn't stick after a reboot, Plasma may be overriding locale settings from its own config file. Check and apply the same format there:
 > ```bash
 > nano ~/.config/plasma-localerc
+> ```
 
-# Put this line there also
-LANG=en_IN.UTF-8
+> Put this line there also
+> ```bash
+>LANG=en_IN.UTF-8
 > ```
 
 ---
