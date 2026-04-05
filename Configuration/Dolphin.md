@@ -88,43 +88,42 @@ Once you log back in, Dolphin will perfectly match your Dank Material Shell them
 
 
 
+That is an excellent point. The browser "Save As" and "Open File" dialogs use the GTK portal (`xdg-desktop-portal-gtk`), and because Niri doesn't have a GNOME/GTK settings daemon running in the background, those dialogs default to a blinding light theme.
 
+Since Dank Material Shell has a built-in button for GTK as well (which we saw right next to the Qt button in your screenshot), we can integrate this perfectly. We just need to ensure the system is explicitly told to prefer dark mode for GTK apps.
 
+Here is the **final, complete master guide**, now including the GTK portal fix for your browser dialogs!
 
+---
 
+### The Ultimate Guide: Fixing Dolphin (Qt) & File Dialogs (GTK) on Niri with Dank Material Shell
 
-You are absolutely right, it is much better to have all the options and failsafes documented in one place. Having the KDE daemon option is especially useful if you install new apps frequently.
+When using Niri (a standalone Wayland compositor), Qt apps like Dolphin and GTK file picker portals lose their background services and theming variables. This causes unreadable text, broken right-click menus, and blinding white "Save As" dialogs in browsers.
 
-Here is the fully updated, comprehensive guide including both the Niri environment variables and the dynamic background daemon options.
-
-### The Ultimate Guide: Fixing Dolphin (Qt) on Niri & Dank Material Shell
-
-When using Niri (a standalone Wayland compositor) instead of a full desktop environment like KDE Plasma, Qt applications like Dolphin lose their background services and theming variables. This causes unreadable text (black-on-dark) and breaks the "Open With" menu.
-
-Here is how to fix it permanently.
+Here is how to fix all of it permanently.
 
 ---
 
 #### Phase 1: Install Required Dependencies
 
-You need the KDE-specific Qt configuration tool to allow Dank Material Shell to sync its colors properly, along with base themes.
+You need the KDE-specific Qt configuration tool, base themes, and the GTK dependencies for the file portals.
 
 Open your terminal and install the following packages:
 
 ```bash
-sudo pacman -S qt5ct kvantum breeze
+sudo pacman -S qt5ct kvantum breeze adw-gtk-theme xdg-desktop-portal-gtk
 paru -S qt6ct-kde
 
 ```
 
-*(Note: If paru asks to replace the standard qt6ct package, type Y for yes).*
+*(Note: If paru asks to replace the standard qt6ct package, type Y for yes. adw-gtk3 provides a proper base for GTK app theming).*
 
 #### Phase 2: Set the Environment Variables
 
-You need to tell your system to use `qt6ct` for theming. For maximum reliability, it is best to set this in both your Niri config and at the systemd level (so background services don't drop the theme).
+You need to tell your system to use `qt6ct` for theming. It is best to set this in both your Niri config and at the systemd level so background services don't drop the theme.
 
 **1. Niri Configuration (~/.config/niri/config.kdl):**
-Add the following `environment` block to your config file (or add the variables to your existing block):
+Add the following `environment` block to your config file:
 
 ```code snippet
 environment {
@@ -143,44 +142,55 @@ echo 'QT_QPA_PLATFORMTHEME=qt6ct' > ~/.config/environment.d/qt.conf
 
 ```
 
-#### Phase 3: Apply the Dank Material Shell Theme
+#### Phase 3: Force GTK Portals to Use Dark Mode
 
-Now that the system knows to look for `qt6ct`, you need to generate the actual color scheme.
+To fix the blinding white "Save As" and "Upload" dialogs in browsers, you must tell the GNOME/GTK backend that your system prefers dark mode. Run this command in your terminal:
+
+```bash
+gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
+
+```
+
+#### Phase 4: Apply the Dank Material Shell Themes
+
+Now that the system knows where to look for themes and prefers dark mode, let DMS generate the actual color schemes.
 
 1. Open your **Dank Shell Settings**.
 2. Navigate to **Theme & Colors**.
 3. Scroll down to the **System App Theming** section.
-4. Click **Apply Qt Colors**. This runs the built-in script that generates the `qt6ct` configurations to match your current shell theme.
+4. Click **Apply GTK Colors** (This fixes standard GTK apps and the `xdg-desktop-portal-gtk` dialogs).
+5. Click **Apply Qt Colors** (This fixes Dolphin and other Qt apps).
 
-#### Phase 4: Fix the "Open With" Menu Permanently
+#### Phase 5: Fix the "Open With" Menu Permanently
 
-Dolphin relies on a background cache to know what apps are installed. Niri needs to rebuild or manage this cache at startup. Add **ONE** of the following lines to your `~/.config/niri/config.kdl` file under your startup processes:
+Dolphin relies on a background cache to know what apps are installed. Add **ONE** of the following lines to your `~/.config/niri/config.kdl` file under your startup processes:
 
-- **Option 1: The Lightweight Method (Rebuilds on Login)**
-This runs a one-shot command to rebuild the cache when you log in. If you install a new app while using the computer, it won't show up in Dolphin's menu until your next login (or until you run the command manually).
-
-```code snippet
-spawn-at-startup "kbuildsycoca6" "--noincremental"
-
-```
-- **Option 2: The True "KDE Experience" (Updates Dynamically)**
-This runs the KDE background daemon. It uses slightly more background memory, but it actively watches your system. If you install a new app, it will instantly appear in Dolphin's "Open With" menu without needing a reboot.
+- **Option 1: The True "KDE Experience" (Recommended)**
+This runs the KDE background daemon. It actively watches your system, so if you install a new app, it will instantly appear in Dolphin's "Open With" menu without needing a reboot.
 
 ```code snippet
 spawn-at-startup "kded6"
 
 ```
+- **Option 2: The Lightweight Method**
+This rebuilds the cache only when you log in. If you install a new app, it won't show up in Dolphin's menu until your next login (or until you run `kbuildsycoca6 --noincremental` manually).
 
-#### Phase 5: Clean Up and Reboot
+```code snippet
+spawn-at-startup "kbuildsycoca6" "--noincremental"
 
-To ensure no broken background instances of Dolphin are lingering in memory, kill the process and reboot your machine to apply the systemd variables and Niri startup commands.
+```
 
-1. Kill any hidden Dolphin instances:
+#### Phase 6: Clean Up and Reboot
+
+To ensure no broken background instances of Dolphin or the GTK portals are lingering in memory, kill the processes and reboot your machine.
+
+1. Kill hidden instances:
 
 ```bash
 killall dolphin
+killall xdg-desktop-portal-gtk
 
 ```
 2. **Reboot your system.**
 
-Once you log back in, Dolphin will perfectly match your Dank Material Shell theme, the text will be readable, and your right-click "Open With" menu will work exactly as intended!
+Once you log back in, Dolphin will be perfectly themed with readable text, your right-click "Open With" menu will work dynamically, and your browser's "Save As" dialogs will finally respect your dark system theme!
