@@ -93,7 +93,12 @@ To pick up the new locale in your current terminal session immediately:
 export LANG=en_IN.UTF-8
 export LC_ALL=en_IN.UTF-8
 ```
-
 Then launch `btop` normally — no flags needed.
 
 For all other apps and your full desktop environment, **log out and back in** (or reboot) to flush the old variables system-wide.
+
+Reload Your Session
+
+The easiest way to flush out the old, broken variables and apply the new UTF-8 ones across your entire desktop environment (including CachyOS, Niri, and your terminal) is to just log out and log back in, or reboot your laptop.
+
+Once you are back in, pop open your terminal, type btop, and it will instantly load up those crisp resource graphs.
