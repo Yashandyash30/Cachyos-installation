@@ -7,7 +7,7 @@
 ## Prerequisites
 
 - Distrobox installed and configured on CachyOS
-- An Ubuntu container running (referred to as `ubuntu` throughout)
+- An Ubuntu container running (referred to as `astro-box` throughout)
 - See BoxBuddy installation steps for GUI-based container management
 
 ---
@@ -34,7 +34,7 @@ tar -zxvf rmfit_v432_64bit.tar.gz
 ## Phase 2: Enter the Distrobox Container
 
 ```bash
-distrobox enter ubuntu
+distrobox enter astro-box
 ```
 
 Once inside, install the base dependencies:
@@ -152,7 +152,7 @@ Type `rmfit` directly from your host terminal and have it automatically enter th
 
 ```bash
 function rmfit
-    distrobox enter ubuntu -- bash -c "cd ~/Downloads/Programs/rmfit_v432 && export IDL_DIR=\$PWD/idl81 && ./idl81/bin/idl -rt=rmfit.sav"
+    distrobox enter astro-box -- bash -c "cd ~/Downloads/Programs/rmfit_v432 && export IDL_DIR=\$PWD/idl81 && ./idl81/bin/idl -rt=rmfit.sav"
 end
 
 funcsave rmfit
