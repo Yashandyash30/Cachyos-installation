@@ -141,3 +141,4 @@ Then **reboot your system.**
 | "Open With" menu empty or broken | Step 5 |
 | White "Save As" dialogs in browsers | Steps 3, 4 |
 | Dolphin not opening when clicking folders | Step 6 |
+| Dolphin not showing open with | `kbuildsycoca6 --noincremental`|
