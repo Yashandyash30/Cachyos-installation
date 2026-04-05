@@ -128,13 +128,13 @@ Run these commands inside the container to copy the program from your host into 
 mkdir -p ~/Downloads/Programs
 ```
 2. Copy the rmfit folder from your host into the container:
-Bash
+
 ```bash
 cp -r /run/host/home/void/Downloads/Programs/rmfit_v432 ~/Downloads/Programs/
 ```
 
 ### Inside the Container (Bash)
-```
+
 ```bash
 echo 'alias rmfit="cd ~/Downloads/Programs/rmfit_v432 && export IDL_DIR=\$PWD/idl81 && ./idl81/bin/idl -rt=rmfit.sav"' >> ~/.bashrc
 ```
