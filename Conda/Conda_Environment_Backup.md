@@ -68,12 +68,14 @@ bash
 /home/void/miniforge3/bin/mamba env export -n fermi    > fermi.yml
 /home/void/miniforge3/bin/mamba env export -n threeML  > threeML.yml
 /home/void/miniforge3/bin/mamba env export -n pyraf    > pyraf.yml
-
+/home/void/miniforge3/bin/mamba env export -n astro_photometry   > astro_photometry.yml
+astro_photometry
 # Portable exports — for new system installation
 /home/void/miniforge3/bin/mamba env export -n henv     --no-builds > henv_portable.yml
 /home/void/miniforge3/bin/mamba env export -n fermi    --no-builds > fermi_portable.yml
 /home/void/miniforge3/bin/mamba env export -n threeML  --no-builds > threeML_portable.yml
 /home/void/miniforge3/bin/mamba env export -n pyraf    --no-builds > pyraf_portable.yml
+/home/void/miniforge3/bin/mamba env export -n astro_photometry     --no-builds > astro_photometry .yml
 ```
 
 Verify all files were created:
