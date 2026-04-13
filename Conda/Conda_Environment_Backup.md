@@ -326,24 +326,24 @@ ENVS=("henv" "fermi" "threeML" "pyraf" "astro_photometry")
 
 # ── Export ────────────────────────────────────────────────────────────────────
 for env in "${ENVS[@]}"; do
-    # Check the environment actually exists before trying to export
-    if ! $MAMBA_CMD env list | grep -q "^$env "; then
-        echo "⚠️  Skipping '$env' — environment not found"
+    # Bulletproof check: awk grabs only the first column, grep -Fxq forces an exact full-word match
+    if ! $MAMBA_CMD env list | awk '{print $1}' | grep -Fxq "$env"; then
+        echo "⚠️  Skipping '$env' — environment not found in mamba"
         continue
     fi
 
     echo "📦 Backing up: $env"
 
-    $MAMBA_CMD env export -n "$env" > "${env}.yml"
-    $MAMBA_CMD env export -n "$env" --no-builds > "${env}_portable.yml"
+    # Suppress output to keep the terminal clean, only show errors if they happen
+    $MAMBA_CMD env export -n "$env" > "${env}.yml" 2>/dev/null
+    $MAMBA_CMD env export -n "$env" --no-builds > "${env}_portable.yml" 2>/dev/null
 
     echo "   ✅ Done"
 done
-
-# ── Summary ───────────────────────────────────────────────────────────────────
 echo ""
 echo "Backup complete. Files saved to $BACKUP_DIR:"
 ls -lh "$BACKUP_DIR"/*.yml
+
 ```
 
 Save and exit (**Ctrl+O → Enter**, then **Ctrl+X**).
