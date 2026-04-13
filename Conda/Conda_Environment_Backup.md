@@ -1,6 +1,8 @@
 # Conda Environment Backup & Restore Guide
 
 > Snapper protects your system. It does not protect your conda environments. These live in `~/miniforge3/envs/` inside your home directory — outside Btrfs snapshot scope. This guide ensures every environment can be fully restored if something breaks, and cleanly recreated on a new system.
+>
+>
 
 ---
 
@@ -11,12 +13,14 @@ Make sure only one conda installation exists on your system. Having two (e.g. bo
 ```bash
 which mamba
 which conda
+
 ```
 
-Both should point to `/home/YOUR_USERNAME/miniforge3/bin/`. If either points to `miniconda3`, remove it:
+Both should point to `/home/YOUR_USERNAME/miniforge3/condabin/`. If either points to `miniconda3`, remove it:
 
 ```bash
 rm -rf ~/miniconda3
+
 ```
 
 ---
@@ -28,7 +32,8 @@ rm -rf ~/miniconda3
 Saves every package at the exact version with platform-specific build strings. Guarantees a byte-for-byte identical environment on the same OS.
 
 ```bash
-/home/void/miniforge3/bin/mamba env export -n henv > henv.yml
+/home/void/miniforge3/condabin/mamba env export -n henv > henv.yml
+
 ```
 
 Use this for: **local backups, rollback after a bad update, same-machine recovery.**
@@ -40,7 +45,8 @@ Use this for: **local backups, rollback after a bad update, same-machine recover
 Drops platform-specific build strings. More flexible — mamba resolves the nearest compatible versions on the new system cleanly.
 
 ```bash
-/home/void/miniforge3/bin/mamba env export -n henv --no-builds > henv_portable.yml
+/home/void/miniforge3/condabin/mamba env export -n henv --no-builds > henv_portable.yml
+
 ```
 
 Use this for: **migrating to a new machine, fresh CachyOS install.**
@@ -52,6 +58,7 @@ Use this for: **migrating to a new machine, fresh CachyOS install.**
 ```bash
 mkdir -p ~/conda-backups
 cd ~/conda-backups
+
 ```
 
 ---
@@ -64,24 +71,26 @@ Run in bash (not fish):
 bash
 
 # Exact exports — for local backup and rollback
-/home/void/miniforge3/bin/mamba env export -n henv     > henv.yml
-/home/void/miniforge3/bin/mamba env export -n fermi    > fermi.yml
-/home/void/miniforge3/bin/mamba env export -n threeML  > threeML.yml
-/home/void/miniforge3/bin/mamba env export -n pyraf    > pyraf.yml
-/home/void/miniforge3/bin/mamba env export -n astro_photometry   > astro_photometry.yml
-astro_photometry
+/home/void/miniforge3/condabin/mamba env export -n henv > henv.yml
+/home/void/miniforge3/condabin/mamba env export -n fermi > fermi.yml
+/home/void/miniforge3/condabin/mamba env export -n threeML > threeML.yml
+/home/void/miniforge3/condabin/mamba env export -n pyraf > pyraf.yml
+/home/void/miniforge3/condabin/mamba env export -n astro_photometry > astro_photometry.yml
+
 # Portable exports — for new system installation
-/home/void/miniforge3/bin/mamba env export -n henv     --no-builds > henv_portable.yml
-/home/void/miniforge3/bin/mamba env export -n fermi    --no-builds > fermi_portable.yml
-/home/void/miniforge3/bin/mamba env export -n threeML  --no-builds > threeML_portable.yml
-/home/void/miniforge3/bin/mamba env export -n pyraf    --no-builds > pyraf_portable.yml
-/home/void/miniforge3/bin/mamba env export -n astro_photometry     --no-builds > astro_photometry .yml
+/home/void/miniforge3/condabin/mamba env export -n henv --no-builds > henv_portable.yml
+/home/void/miniforge3/condabin/mamba env export -n fermi --no-builds > fermi_portable.yml
+/home/void/miniforge3/condabin/mamba env export -n threeML --no-builds > threeML_portable.yml
+/home/void/miniforge3/condabin/mamba env export -n pyraf --no-builds > pyraf_portable.yml
+/home/void/miniforge3/condabin/mamba env export -n astro_photometry --no-builds > astro_photometry_portable.yml
+
 ```
 
 Verify all files were created:
 
 ```bash
 ls -lh ~/conda-backups/
+
 ```
 
 Expected output — all files should have a non-zero size:
@@ -95,6 +104,9 @@ threeML.yml
 threeML_portable.yml
 pyraf.yml
 pyraf_portable.yml
+astro_photometry.yml
+astro_photometry_portable.yml
+
 ```
 
 ---
@@ -118,6 +130,7 @@ Use the exact `.yml` files:
 ```bash
 mamba env remove -n henv
 mamba env create -f ~/conda-backups/henv.yml
+
 ```
 
 ---
@@ -131,22 +144,19 @@ mamba env create -f ~/conda-backups/henv_portable.yml
 mamba env create -f ~/conda-backups/fermi_portable.yml
 mamba env create -f ~/conda-backups/threeML_portable.yml
 mamba env create -f ~/conda-backups/pyraf_portable.yml
+mamba env create -f ~/conda-backups/astro_photometry_portable.yml
+
 ```
 
 > If mamba warns that an exact package build isn't available, it will automatically fall back to the nearest compatible version — this is expected and fine.
+>
+>
 
 ---
 
 ## Which File to Use — Quick Reference
 
-| Situation | File to Use |
-|---|---|
-| Same machine rollback after bad update | `henv.yml` (exact) |
-| Environment corrupted, rebuild in place | `henv.yml` (exact) |
-| Migrating to new CachyOS install | `henv_portable.yml` (portable) |
-| Sharing environment with a colleague | `henv_portable.yml` (portable) |
-
----
+SituationFile to UseSame machine rollback after bad update`henv.yml` (exact)Environment corrupted, rebuild in place`henv.yml` (exact)Migrating to new CachyOS install`henv_portable.yml` (portable)Sharing environment with a colleague`henv_portable.yml` (portable)Export to Sheets---
 
 ## Maintenance
 
@@ -156,19 +166,58 @@ Re-export after any significant update so backups stay current:
 bash
 cd ~/conda-backups
 
-/home/void/miniforge3/bin/mamba env export -n henv > henv.yml
-/home/void/miniforge3/bin/mamba env export -n henv --no-builds > henv_portable.yml
+/home/void/miniforge3/condabin/mamba env export -n henv > henv.yml
+/home/void/miniforge3/condabin/mamba env export -n henv --no-builds > henv_portable.yml
+
 ```
 
 Do this especially after updating HEASoft, Fermitools, or ThreeML as those are the most likely to receive channel updates.
 
 ---
 
-## When Environments Can Break
+## Future-Proofing: Automatic Path Detection
 
-| Cause | Effect |
-|---|---|
-| Bad `mamba update` pulling incompatible dependency | Broken imports or runtime crashes |
-| Python version bump breaking compiled extensions | Tool-specific failures |
-| `heainit.sh` overwritten after XSPEC update | XSPEC/ThreeML activation failure |
-| Accidental `pip install` conflicting with conda | Subtle dependency conflicts |
+If you ever reinstall conda, move your home directory, or change to a different distribution, hardcoding `/home/void/miniforge3/condabin/` might break your scripts.
+
+Instead of typing out the absolute path every time, you can instruct bash to automatically detect where `mamba` is installed using the `which` command, and store that path as a variable (`$MAMBA_CMD`).
+
+Here is how you can write a fully automated, future-proof backup script:
+
+```bash
+#!/bin/bash
+
+# 1. Automatically find the mamba executable path
+MAMBA_CMD=$(which mamba)
+
+# Check if mamba was found
+if [ -z "$MAMBA_CMD" ]; then
+    echo "Error: mamba not found in PATH."
+    exit 1
+fi
+
+echo "Using mamba at: $MAMBA_CMD"
+
+# 2. Go to backup directory
+mkdir -p ~/conda-backups
+cd ~/conda-backups
+
+# 3. Define the list of your environments
+ENVS=("henv" "fermi" "threeML" "pyraf" "astro_photometry")
+
+# 4. Loop through the list and backup each one automatically
+for env in "${ENVS[@]}"; do
+    echo "Backing up $env..."
+    
+    # Exact export
+    $MAMBA_CMD env export -n $env > ${env}.yml
+    
+    # Portable export
+    $MAMBA_CMD env export -n $env --no-builds > ${env}_portable.yml
+done
+
+echo "Backup complete!"
+ls -lh ~/conda-backups/
+
+```
+
+You can save this block of code as `backup_conda.sh`, run `chmod +x backup_conda.sh` to make it executable, and then run `./backup_conda.sh` anytime you want to update all your backups instantly, regardless of where mamba is currently installed on your system.
