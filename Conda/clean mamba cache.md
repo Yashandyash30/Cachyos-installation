@@ -1,7 +1,3 @@
-Here is the information structured into a clean, easy-to-read technical guide.
-
----
-
 ## Guide: Reclaiming Disk Space in Miniforge
 
 Astrophysics packages—especially the full HEASoft suite, Fermitools, and XSPEC data tables—pull down gigabytes of compressed files during installation. Once your environments are successfully built, those leftover installer files sit on your drive and waste valuable space.
