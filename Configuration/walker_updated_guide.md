@@ -22,26 +22,6 @@ paru -S walker
 paru -S elephant-all-bin
 ```
 
-```python
-content = """# Walker App Launcher — Setup Guide
-### Niri · CachyOS · Wayland
-
-Walker is a fast application launcher for Wayland. It has two parts that must both be running for it to work:
-
-- **Elephant** — the background data engine that indexes files, apps, and calculations
-- **Walker** — the visual frontend (UI) that appears when you press your hotkey
-
-Elephant must always start **before** Walker.
-
----
-
-## Part 1 — Install
-
-### Step 1.1 — Walker and Elephant
-
-
-```
-
 ### Step 1.2 — Thumbnail generators (optional)
 
 Enables image, PDF, and video previews in file search results:
@@ -260,26 +240,5 @@ Check systemd is off         systemctl --user status elephant
 Elephant search config       ~/.config/elephant/files.toml
 Niri autostart               ~/.config/niri/config.kdl
 Niri keybinds                ~/.config/niri/cfg/keybinds.kdl
-
-```
-
-"""
-
-with open("walker_niri_guide.md", "w") as f:
-f.write(content)
-print("File generated successfully: walker_niri_guide.md")
-
-```
-Your markdown file is ready.
-[file-tag: code-generated-file-0-1776188832857996747]
-
-The guide has been completely rewritten to reflect the all-Niri setup as the primary, recommended installation method. 
-
-Here is what was updated:
-* **The systemd sections** have been moved to a migration/deprecation section, explaining exactly why Wayland race conditions cause the "invisible crashing app" problem.
-* **The Niri autostart block** now correctly lists the three essential commands (`kbuildsycoca6`, `elephant`, and `walker`) in order.
-* **The VM renderer workaround (`GSK_RENDERER=gl`)** was removed since it isn't needed for your bare-metal setup. 
-* **The DNF fix** has been updated to the much faster `sudo rm` file deletion method rather than editing the `toml` configuration. 
-* **Troubleshooting and Reference commands** have all been updated to use `killall elephant` instead of `systemctl` commands.
 
 ```
