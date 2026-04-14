@@ -115,7 +115,7 @@ spawn-at-startup "walker" "--gapplication-service"
 >spawn-at-startup "sh" "-c" "GSK_RENDERER=gl walker --gapplication-service"
 >```
 
-> `GSK_RENDERER=gl` forces Walker to use OpenGL instead of Vulkan. This prevents crashes on systems where Vulkan isn't fully supported and has no performance downside on AMD.
+> `GSK_RENDERER=gl` line is a specific fallback designed for Virtual Machines (which usually lack proper 3D/Vulkan hardware acceleration) or systems with broken graphics drivers. It forces the app to use older OpenGL rendering instead of modern Vulkan. This prevents crashes on systems where Vulkan isn't fully supported and has no performance downside on AMD.
 
 
 ### Step 4.2 — Add a keybind
