@@ -104,13 +104,19 @@ nano ~/.config/niri/config.kdl
 
 Add this line:
 
-```kdl
-spawn-at-startup "sh" "-c" "GSK_RENDERER=gl walker --gapplication-service"
+```code snippet
+spawn-at-startup "walker" "--gapplication-service"
 ```
+> **Note:** Because this is running natively on hardware equipped with a dedicated GPU (like a GTX 1650) rather than a virtual machine, you do not need the `GSK_RENDERER=gl` fallback. Walker will natively use Vulkan for optimal performance.
+
+> Also, do not add `spawn-at-startup "elephant"` here. Elephant is already handled by systemd, and adding it to Niri will cause a double-launch that drains system resources.
+
+>```kdl
+>spawn-at-startup "sh" "-c" "GSK_RENDERER=gl walker --gapplication-service"
+>```
 
 > `GSK_RENDERER=gl` forces Walker to use OpenGL instead of Vulkan. This prevents crashes on systems where Vulkan isn't fully supported and has no performance downside on AMD.
 
-> **Do not add `spawn-at-startup "elephant"` here.** Elephant is already handled by systemd. Adding it here causes the double-launch resource drain.
 
 ### Step 4.2 — Add a keybind
 
