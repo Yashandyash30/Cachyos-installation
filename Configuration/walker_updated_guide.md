@@ -308,6 +308,43 @@ Clear out any currently running instances of Elephant so you can start fresh:
 killall elephant
 
 ```
+
+---
+
+### Appendix: Systemd vs. Niri Autostart (Which is better?)
+
+When setting up background engines like Elephant, you have two choices for how to launch them on boot: through your window manager (`niri config`) or through Linux's built-in service manager (`systemd`).
+
+**Resource Usage:** Both methods use the **exact same** amount of CPU and RAM. The difference lies entirely in stability and management.
+
+#### Method 1: Systemd (Recommended)
+
+Systemd is designed specifically to manage background daemons. This is the industry standard for running services like Elephant.
+
+- **Pros:**
+
+  - **Crash Recovery:** If Elephant crashes, systemd can automatically restart it in the background without you noticing.
+  - **Cleaner Logs:** You can easily read error logs specifically for Elephant by running `journalctl --user -u elephant`.
+  - **Independent:** You can start, stop, or restart the engine (`systemctl --user restart elephant`) without having to log out or reload your entire desktop environment.
+- **Cons:**
+
+  - Your configuration is split. Your visual app launcher is managed in Niri, but the engine is managed by systemd.
+
+#### Method 2: Niri Autostart (spawn-at-startup)
+
+This method launches Elephant the exact same way it launches a normal app like Firefox or Discord.
+
+- **Pros:**
+
+  - **Centralized Config:** Every single thing that starts with your computer is kept in one single file (`~/.config/niri/config.kdl`), making it easy to backup or copy to a new machine.
+- **Cons:**
+
+  - **No Auto-Restart:** If the Elephant worker crashes in the background, your search bar will just stop working until you manually restart it or log out.
+  - **Messy Logs:** Any errors Elephant throws get mixed in with Niri's general system logs, making troubleshooting much harder.
+
+**The Verdict:** Use **Systemd** for the Elephant engine (the invisible backend), and use **Niri autostart** for the Walker UI and cache builders (`kbuildsycoca6`).
+
+---
 ## Quick Reference
 
 ```
