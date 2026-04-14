@@ -287,9 +287,27 @@ Verify a change took effect:
 ```bash
 xdg-mime query default inode/directory
 ```
-
 ---
 
+### Switch Autostart from Systemd to Niri (Fix Double-Launch)
+
+If you previously set up Elephant to run as a background service using `systemd`, but now want Niri to handle the autostart, you must disable the systemd entry. Leaving both active will cause a double-launch, where two instances of Elephant run simultaneously and drain system resources.
+
+**1. Disable the systemd service**
+First, tell systemd to stop managing Elephant and disable it from launching on boot:
+
+```bash
+systemctl --user disable --now elephant
+
+```
+
+**2. Kill any duplicate processes**
+Clear out any currently running instances of Elephant so you can start fresh:
+
+```bash
+killall elephant
+
+```
 ## Quick Reference
 
 ```
@@ -297,6 +315,7 @@ Start Elephant (systemd)    systemctl --user start elephant.service
 Stop Elephant               systemctl --user stop elephant.service
 Restart Elephant            systemctl --user restart elephant.service
 Check Elephant status       systemctl --user status elephant.service
+systemd disable Elephant    systemctl --user disable --now elephant
 View Elephant logs          journalctl --user -u elephant.service -n 50
 Check for duplicates        pgrep -a elephant
 Kill all Walker instances    pkill -f walker
