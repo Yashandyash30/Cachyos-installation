@@ -1,76 +1,64 @@
-# 🚀 The Ultimate Guide to Installing Walker on Niri (Arch Linux)
+# Walker App Launcher — Setup Guide
+### Niri · CachyOS · Wayland
 
-Walker is a blazing fast application launcher for Wayland. It consists of two parts:
-1. **Walker**: The visual frontend (UI).
-2. **Elephant**: The background data engine that handles searching files, finding apps, and doing calculations.
+Walker is a fast application launcher for Wayland. It has two parts that must both be running for it to work:
 
-## 1. Installation
+- **Elephant** — the background data engine that indexes files, apps, and calculations
+- **Walker** — the visual frontend (UI) that appears when you press your hotkey
 
-First, install Walker and the Elephant backend using your AUR helper (`paru` or `yay`). We will also install some thumbnail generation packages to make sure file previews look great.
+Elephant must always start **before** Walker.
+
+---
+
+## Part 1 — Install
+
+### Step 1.1 — Walker and Elephant
 
 ```bash
-# Install Walker UI
+# Walker UI
 paru -S walker
 
-# Install Elephant Backend (using the -bin version to avoid compiling Go code)
+# Elephant backend (-bin avoids compiling Go from source)
 paru -S elephant-all-bin
+```
 
-# Install optional thumbnail generators for images & PDFs 
+### Step 1.2 — Thumbnail generators (optional)
+
+Enables image, PDF, and video previews in file search results:
+
+```bash
 sudo pacman -S tumbler poppler-glib ffmpegthumbnailer
-```
-
-## 2. Setting Up Niri Autostart
-
-Walker needs to run as a background service so that it pops up instantly when you press your hotkey. 
-
-> [!NOTE] 
-> Because of a known issue with virtual machines (like VMware) not supporting Vulkan properly, we are adding the `GSK_RENDERER=gl` flag to force Walker to use standard OpenGL instead of crashing.
-
-Open your Niri autostart configuration file:
-```bash
-nano ~/.config/niri/cfg/autostart.kdl
-```
-
-Add these lines to start both the engine and the UI when you log in. **Note: Elephant must always start before Walker**:
-```kdl
-spawn-at-startup "elephant"
-spawn-at-startup "sh" "-c" "GSK_RENDERER=gl walker --gapplication-service" 
-```
-
-## 3. Creating a Niri Keybind
-
-To actually open Walker on your screen, you need to assign it a shortcut (e.g., `Alt + Space`).
-
-Open your Niri keybinds config:
-```bash
-nano ~/.config/niri/cfg/keybinds.kdl
-```
-
-Add this line inside your binds block:
-```kdl
-// Walker App Launcher
-Alt+Space hotkey-overlay-title="Open Walker Launcher" { spawn "walker"; }
-```
-
-You can now restart Niri or manually start the background services for this session to test it:
-```bash
-elephant &
-GSK_RENDERER=gl walker --gapplication-service &
 ```
 
 ---
 
-## 4. (Optional but Recommended) Setup Elephant as a Systemd Service
+## Part 2 — Choose a Launch Method
 
-While relying on Niri's autostart works, setting Elephant up as a system service is much more robust because it will automatically restart if the background engine crashes.
+There are two ways to start Elephant at login. **Use only one** — running both simultaneously causes two separate Elephant instances to compete for the same system bus, wastes RAM, and triggers the resource drain described in Part 6.
 
-**1. Create the systemd directory and service file:**
+| | Systemd Service | Niri Autostart |
+|---|---|---|
+| Auto-restarts if it crashes | ✅ Yes | ❌ No |
+| Starts before Niri is fully ready | ✅ Yes | ❌ No — races with session startup |
+| Resource usage | Lower (managed process) | Higher (risks double-launch) |
+| Easy to check status/logs | ✅ `systemctl --user status elephant` | ❌ No visibility |
+| **Recommended** | ✅ **Yes** | Only if you don't use systemd |
+
+**The systemd service is the better choice.** It uses less resources, is more stable, and gives you proper crash recovery. The steps below follow that method.
+
+---
+
+## Part 3 — Set Up Elephant as a Systemd Service
+
+### Step 3.1 — Create the service file
+
 ```bash
 mkdir -p ~/.config/systemd/user/
 nano ~/.config/systemd/user/elephant.service
 ```
 
-**2. Paste in the following configuration:**
+Paste the following:
+
 ```ini
 [Unit]
 Description=Elephant Data Engine for Walker
@@ -85,29 +73,100 @@ RestartSec=3
 WantedBy=default.target
 ```
 
-**3. Enable and start the service:**
+Save and exit (**Ctrl+O → Enter**, then **Ctrl+X**).
+
+### Step 3.2 — Enable and start the service
+
 ```bash
 systemctl --user daemon-reload
 systemctl --user enable --now elephant.service
 ```
-*(If you do this, you can safely remove the `spawn-at-startup "elephant"` line from your Niri autostart file).*
+
+### Step 3.3 — Verify it's running
+
+```bash
+systemctl --user status elephant.service
+```
+
+You should see `Active: active (running)`. If it shows failed, check Part 7 for troubleshooting.
 
 ---
 
-## 5. Customizing Elephant Search Paths
+## Part 4 — Configure Niri
 
-By default, Elephant scans your entire home directory. You can drastically speed up your search times by ignoring heavy hidden folders (like `.cache`) and only targeting your active workflow locations.
+### Step 4.1 — Autostart Walker only (not Elephant)
 
-Create and open the configuration file:
+Since Elephant is now managed by systemd, only Walker needs to be in your Niri autostart. Open your autostart config:
+
+```bash
+nano ~/.config/niri/cfg/autostart.kdl
+```
+
+Add this line:
+
+```kdl
+spawn-at-startup "sh" "-c" "GSK_RENDERER=gl walker --gapplication-service"
+```
+
+> `GSK_RENDERER=gl` forces Walker to use OpenGL instead of Vulkan. This prevents crashes on systems where Vulkan isn't fully supported and has no performance downside on AMD.
+
+> **Do not add `spawn-at-startup "elephant"` here.** Elephant is already handled by systemd. Adding it here causes the double-launch resource drain.
+
+### Step 4.2 — Add a keybind
+
+Open your keybinds config:
+
+```bash
+nano ~/.config/niri/cfg/keybinds.kdl
+```
+
+Add this inside your binds block:
+
+```kdl
+// Walker App Launcher
+Alt+Space hotkey-overlay-title="Open Walker Launcher" { spawn "walker"; }
+```
+
+---
+
+## Part 5 — Fix the dnf Resource Drain
+
+By default, Elephant tries to scan for installed apps using package managers from multiple Linux distributions — including `dnf` (Fedora's package manager). Since you're on CachyOS, `dnf` doesn't exist here, so Elephant gets stuck trying to run it, times out, and retries in a loop. This silently eats CPU in the background.
+
+Find and open the Elephant package provider config:
+
+```bash
+# Check which location exists on your install
+ls ~/.config/elephant/
+ls ~/.config/walker/
+```
+
+Open the relevant config file (likely `packages.toml` or `providers.toml`) and ensure only Arch-based package managers are listed. Remove or comment out any references to `dnf`, `apt`, `rpm`, or `zypper`.
+
+It should only contain entries for `pacman` (and optionally `paru`/`yay`).
+
+After editing, restart Elephant:
+
+```bash
+systemctl --user restart elephant.service
+```
+
+---
+
+## Part 6 — Customise Elephant Search Paths
+
+By default Elephant scans your entire home directory, which is slow. Restrict it to only the folders you actually use:
+
 ```bash
 mkdir -p ~/.config/elephant
 nano ~/.config/elephant/files.toml
 ```
 
-Paste your preferences:
+Paste and adjust to your workflow:
+
 ```toml
 [files]
-# Directories you actively want Walker to search
+# Folders to search
 paths = [
     "~/Documents",
     "~/Downloads",
@@ -115,7 +174,7 @@ paths = [
     "~/Projects"
 ]
 
-# Directories you want it to completely ignore (speeds up search!)
+# Folders to skip entirely (big speed improvement)
 ignored_paths = [
     "~/.cache",
     "~/.local",
@@ -123,52 +182,117 @@ ignored_paths = [
     "~/Games"
 ]
 
-# Disable hidden files to make file searches lightning fast
+# Hide dotfiles from results
 show_hidden = false
 ```
 
-Restart your service so it reads the new configuration:
+Restart to apply:
+
 ```bash
 systemctl --user restart elephant.service
 ```
 
 ---
 
-## 🛠️ Common Troubleshooting
+## Part 7 — Troubleshooting
 
-### Error: `Failed to detect any valid GPUs` or `VK_ERROR_INITIALIZATION_FAILED`
-This means your graphics environment doesn't support the Vulkan renderer. Kill the background app and start it forcing OpenGL:
+### Check for duplicate Elephant instances
+
+If Walker feels sluggish or you suspect something is wrong, check how many Elephant processes are running:
+
+```bash
+pgrep -a elephant
+```
+
+More than one line means you have a double-launch. Fix it:
+
+```bash
+# Kill all instances
+killall elephant
+
+# Make sure Niri autostart doesn't also spawn elephant
+nano ~/.config/niri/cfg/autostart.kdl
+# Remove any line containing "elephant"
+
+# Start a single clean instance via systemd
+systemctl --user start elephant.service
+```
+
+---
+
+### `Failed to detect any valid GPUs` or `VK_ERROR_INITIALIZATION_FAILED`
+
+Vulkan isn't available or working. The `GSK_RENDERER=gl` flag in your autostart (Part 4) already handles this. If you see it anyway:
+
 ```bash
 pkill -f walker
 GSK_RENDERER=gl walker --gapplication-service &
 ```
 
-### Error: `Unable to acquire bus name 'dev.benz.walker'`
-This means you tried to start Walker, but another invisible instance is already running in the background and holding onto the system bus. Force quit the stuck process and start it again:
+---
+
+### `Unable to acquire bus name 'dev.benz.walker'`
+
+A stale Walker instance is holding the session bus. Kill it and restart:
+
 ```bash
 pkill -f walker
 GSK_RENDERER=gl walker --gapplication-service &
 ```
 
-### UI says "waiting for elephant"
-Walker cannot find its backend engine. Kill any existing tasks and always **start Elephant first, then Walker**.
-```bash
-pkill -f walker
-pkill -f elephant
+---
 
-elephant &
-GSK_RENDERER=gl walker --gapplication-service &
+### UI shows "waiting for elephant"
+
+Elephant isn't running. Check its status and start it:
+
+```bash
+systemctl --user status elephant.service
+systemctl --user start elephant.service
 ```
 
-### Files & Folders are Opening in the Web Browser (MIME Hijacking)
-If you search for a folder and it opens in Firefox/Brave instead of your file manager, use the `xdg-mime` command to force the system to route those files to your actual apps. Examples below:
+If it refuses to start, check the logs:
 
 ```bash
-# Force folders to open in Nautilus (GNOME Files)
-xdg-mime default org.gnome.Nautilus.desktop inode/directory
-xdg-mime default org.gnome.Nautilus.desktop application/x-directory
+journalctl --user -u elephant.service -n 50
+```
 
-# Force images to open in Loupe (Image Viewer)
+---
+
+### Files open in the browser instead of the correct app (MIME hijacking)
+
+Fix by explicitly assigning the correct app to each file type:
+
+```bash
+# Folders → Dolphin (or replace with your file manager's .desktop name)
+xdg-mime default org.kde.dolphin.desktop inode/directory
+xdg-mime default org.kde.dolphin.desktop application/x-directory
+
+# Images → your image viewer
 xdg-mime default org.gnome.Loupe.desktop image/png
 xdg-mime default org.gnome.Loupe.desktop image/jpeg
+```
+
+Verify a change took effect:
+
+```bash
+xdg-mime query default inode/directory
+```
+
+---
+
+## Quick Reference
+
+```
+Start Elephant (systemd)    systemctl --user start elephant.service
+Stop Elephant               systemctl --user stop elephant.service
+Restart Elephant            systemctl --user restart elephant.service
+Check Elephant status       systemctl --user status elephant.service
+View Elephant logs          journalctl --user -u elephant.service -n 50
+Check for duplicates        pgrep -a elephant
+Kill all Walker instances    pkill -f walker
+Elephant search config      ~/.config/elephant/files.toml
+Elephant service file        ~/.config/systemd/user/elephant.service
+Niri autostart               ~/.config/niri/cfg/autostart.kdl
+Niri keybinds                ~/.config/niri/cfg/keybinds.kdl
 ```
