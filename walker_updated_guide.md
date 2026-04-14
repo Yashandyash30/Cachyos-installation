@@ -106,8 +106,11 @@ Add this line:
 
 ```code snippet
 spawn-at-startup "walker" "--gapplication-service"
+#Optional
+exec-once = kbuildsycoca6 --noincremental
 ```
-> **Note:** Because this is running natively on hardware equipped with a dedicated GPU (like a GTX 1650) rather than a virtual machine, you do not need the `GSK_RENDERER=gl` fallback. Walker will natively use Vulkan for optimal performance.
+
+> `kbuildsycoca6" "--noincremental` This runs kbuildsycoca6, a KDE Plasma 6 utility that rebuilds your system's desktop application cache. Running this at startup is a genuinely great idea because it ensures Walker (via the Elephant backend) can immediately see and launch all of your installed apps.
 
 > Also, do not add `spawn-at-startup "elephant"` here. Elephant is already handled by systemd, and adding it to Niri will cause a double-launch that drains system resources.
 
@@ -115,7 +118,7 @@ spawn-at-startup "walker" "--gapplication-service"
 >spawn-at-startup "sh" "-c" "GSK_RENDERER=gl walker --gapplication-service"
 >```
 
-> `GSK_RENDERER=gl` line is a specific fallback designed for Virtual Machines (which usually lack proper 3D/Vulkan hardware acceleration) or systems with broken graphics drivers. It forces the app to use older OpenGL rendering instead of modern Vulkan. This prevents crashes on systems where Vulkan isn't fully supported and has no performance downside on AMD.
+> **Note:** `GSK_RENDERER=gl` line is a specific fallback designed for Virtual Machines (which usually lack proper 3D/Vulkan hardware acceleration) or systems with broken graphics drivers. It forces the app to use older OpenGL rendering instead of modern Vulkan. This prevents crashes on systems where Vulkan isn't fully supported and has no performance downside on AMD.
 
 
 ### Step 4.2 — Add a keybind
