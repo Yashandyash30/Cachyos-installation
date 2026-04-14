@@ -99,7 +99,7 @@ You should see `Active: active (running)`. If it shows failed, check Part 7 for 
 Since Elephant is now managed by systemd, only Walker needs to be in your Niri autostart. Open your autostart config:
 
 ```bash
-nano ~/.config/niri/cfg/autostart.kdl
+nano ~/.config/niri/config.kdl
 ```
 
 Add this line:
@@ -293,6 +293,6 @@ Check for duplicates        pgrep -a elephant
 Kill all Walker instances    pkill -f walker
 Elephant search config      ~/.config/elephant/files.toml
 Elephant service file        ~/.config/systemd/user/elephant.service
-Niri autostart               ~/.config/niri/cfg/autostart.kdl
+Niri autostart               ~/.config/niri/config.kdl
 Niri keybinds                ~/.config/niri/cfg/keybinds.kdl
 ```
