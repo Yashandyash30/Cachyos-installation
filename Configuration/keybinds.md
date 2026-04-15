@@ -1,278 +1,175 @@
-### Execution & Application Launching
+# Keybind Reference
 
-KeybindAction`Super + Return`Open Terminal (ghostty) 
-
-`Super + B`Open Browser (zen-browser) 
-
-`Super + E`Open File Manager (dolphin) 
-
-`Super + T`Open Text Editor (zeditor) 
-
-`Super + Space`Application Launcher / Spotlight 
-
-`Alt + Space`Open Walker (Application Launcher) 
-
-`Alt + F`Open fsearch 
-
-`Mod + Ctrl + Space`Plocate/Fuzzel Search Script 
-
-`Mod + Shift + N`Open Notepad 
+> `Mod` = your compositor modifier key &nbsp;·&nbsp; `Super` = Win/Logo key
 
 ---
 
-### System & Shell Controls
+## Launch & Apps
 
-KeybindAction`Alt + F4`Power Menu: Toggle 
-
-`Mod + Alt + L`Lock Screen 
-
-`Mod + Comma`Open Settings 
-
-`Ctrl + Alt + Delete`
-
-
-`Mod + M`
-
-Task Manager +1
-
-`Mod + N`Notification Center 
-
-`Mod + V`Clipboard Manager 
-
-`Mod + Y`Browse Wallpapers (Dankdash) 
-
-`Mod + Shift + W`Create Window Rule 
+| Keys | Action |
+|------|--------|
+| `Super` + `Enter` | Open terminal (Ghostty) |
+| `Super` + `B` | Open Zen Browser |
+| `Super` + `E` | Open Dolphin (file manager) |
+| `Super` + `T` | Open Zed editor |
+| `Super` + `Space` | Application launcher (Spotlight) |
+| `Alt` + `Space` | Walker launcher |
+| `Alt` + `F` | FSearch (file search) |
+| `Mod` + `Ctrl` + `Space` | Fuzzy file search (plocate → xdg-open) |
+| `Mod` + `Shift` + `N` | Toggle notepad |
 
 ---
 
-### Media & Hardware Controls
+## System & Shell
 
-KeybindAction`XF86AudioRaiseVolume`
-
-
-`XF86AudioLowerVolume`
-
-System Volume Up / Down +1
-
-`Ctrl + XF86AudioRaiseVolume`
-
-
-`Ctrl + XF86AudioLowerVolume`
-
-MPRIS Volume Up / Down 
-
-`XF86AudioMute`
-
-
-`XF86AudioMicMute`
-
-Mute Audio / Mute Microphone 
-
-`XF86AudioPlay`
-
-
-`XF86AudioPause`
-
-Play / Pause Media 
-
-`XF86AudioNext`
-
-
-`XF86AudioPrev`
-
-Next / Previous Media Track +1
-
-`XF86MonBrightnessUp`
-
-
-`XF86MonBrightnessDown`
-
-Screen Brightness Up / Down 
+| Keys | Action |
+|------|--------|
+| `Alt` + `F4` | Power menu toggle |
+| `Mod` + `Alt` + `L` | Lock screen |
+| `Mod` + `,` | Settings |
+| `Ctrl` + `Alt` + `Del` | Task manager |
+| `Mod` + `M` | Task manager |
+| `Mod` + `N` | Notification center |
+| `Mod` + `V` | Clipboard manager |
+| `Mod` + `Y` | Browse wallpapers |
+| `Mod` + `Shift` + `W` | Create window rule |
 
 ---
 
-### Workspace Management
+## Media & Hardware
 
-KeybindAction`Mod + 1..9`Focus Workspace 1 through 9 
-
-`Mod + Shift + 1..9`Move Column to Workspace 1 through 9 
-
-`Mod + Page_Up` / `Page_Down`
-
-
-`Mod + WheelScrollUp` / `Down`
-
-
-`Super + Up` / `Down`
-
-Focus Workspace Up / Down +2
-
-`Mod + Shift + Page_Up` / `Page_Down`
-
-
-`Mod + Shift + I` / `U`
-
-Move Workspace Up / Down 
-
-`Super + Shift + Up` / `Down`
-
-
-`Super + Shift + K` / `J`
-
-
-`Super + Shift + WheelScrollUp` / `Down`
-
-Move Column to Workspace Up / Down 
-
-`Ctrl + Shift + R`Rename Workspace 
+| Keys | Action |
+|------|--------|
+| `Vol↑` | Volume +3 |
+| `Vol↓` | Volume −3 |
+| `Ctrl` + `Vol↑` | Media (MPRIS) volume +3 |
+| `Ctrl` + `Vol↓` | Media (MPRIS) volume −3 |
+| `Mute` | Toggle mute |
+| `Mic Mute` | Toggle mic mute |
+| `Play/Pause` | Play / pause |
+| `Next` | Next track |
+| `Prev` | Previous track |
+| `Bright↑` | Brightness +5 |
+| `Bright↓` | Brightness −5 |
 
 ---
 
-### Monitor Management
+## Workspace Management
 
-KeybindAction`Mod + Ctrl + H` / `L`
+### Navigate workspaces
 
+| Keys | Action |
+|------|--------|
+| `Mod` + `1`–`9` | Focus workspace 1–9 |
+| `Mod` + `PgDn` / `Super` + `↓` / `Mod` + `Scroll↓` | Focus workspace below |
+| `Mod` + `PgUp` / `Super` + `↑` / `Mod` + `Scroll↑` | Focus workspace above |
 
-`Mod + Ctrl + Left` / `Right`
+### Move workspace order
 
-Focus Monitor Left / Right +1
+| Keys | Action |
+|------|--------|
+| `Mod` + `Shift` + `PgDn` / `Mod` + `Shift` + `U` | Move workspace down |
+| `Mod` + `Shift` + `PgUp` / `Mod` + `Shift` + `I` | Move workspace up |
+| `Ctrl` + `Shift` + `R` | Rename workspace |
 
-`Mod + Ctrl + K` / `J`
+### Move column to workspace
 
-
-`Super + Ctrl + Up` / `Down`
-
-Focus Monitor Up / Down +1
-
-`Mod + Shift + Ctrl + H` / `L`
-
-
-`Mod + Shift + Ctrl + Left` / `Right`
-
-Move Column to Monitor Left / Right +1
-
-`Mod + Shift + Ctrl + K` / `J`
-
-
-`Mod + Shift + Ctrl + Up` / `Down`
-
-Move Column to Monitor Up / Down +1
-
-`Mod + Shift + P`Power Off Monitors 
-
-s---
-
-### Column Management
-
-KeybindAction`Mod + H` / `L`
-
-
-`Mod + Left` / `Right`
-
-Focus Column Left / Right +3
-
-`Mod + Home` / `End`Focus Column First / Last +2
-
-`Mod + Shift + H` / `L`
-
-
-`Mod + Shift + Left` / `Right`
-
-Move Column Left / Right 
-
-`Mod + Ctrl + Home` / `End`Move Column to First / Last 
-
-`Mod + C`
-
-
-`Mod + Ctrl + C`
-
-Center Column / Center Visible Columns 
-
-`Mod + F`
-
-
-`Mod + Ctrl + F`
-
-Maximize Column / Expand to Available Width +1
-
-`Mod + Equal` / `Minus`Increase / Decrease Column Width (10%) +1
-
-`Mod + R`Switch Preset Column Width 
-
-`Mod + W`Toggle Tabbed Display 
+| Keys | Action |
+|------|--------|
+| `Mod` + `Shift` + `1`–`9` | Move column to workspace 1–9 |
+| `Super` + `Shift` + `↓` / `Super` + `Shift` + `J` | Move column to workspace below |
+| `Super` + `Shift` + `↑` / `Super` + `Shift` + `K` | Move column to workspace above |
 
 ---
 
-### Window Management
+## Monitor Management
 
-KeybindAction`Mod + Q`Close Window 
+### Focus monitor
 
-`Mod + K` / `J`
+| Keys | Action |
+|------|--------|
+| `Mod` + `Ctrl` + `H` / `Mod` + `Ctrl` + `←` | Focus monitor left |
+| `Mod` + `Ctrl` + `L` / `Mod` + `Ctrl` + `→` | Focus monitor right |
+| `Mod` + `Ctrl` + `K` / `Super` + `Ctrl` + `↑` | Focus monitor up |
+| `Mod` + `Ctrl` + `J` / `Super` + `Ctrl` + `↓` | Focus monitor down |
 
+### Move column to monitor
 
-`Super + U` / `I`
+| Keys | Action |
+|------|--------|
+| `Mod` + `Shift` + `Ctrl` + `H` / `←` | Move column to monitor left |
+| `Mod` + `Shift` + `Ctrl` + `L` / `→` | Move column to monitor right |
+| `Mod` + `Shift` + `Ctrl` + `K` | Move column to monitor up |
+| `Mod` + `Shift` + `Ctrl` + `J` | Move column to monitor down |
+| `Mod` + `Shift` + `P` | Power off all monitors |
 
-Focus Window Up / Down +1
+---
 
-`Mod + BracketLeft` / `BracketRight`Consume or Expel Window Left / Right 
+## Column Management
 
-`Mod + Period`Expel Window from Column 
+### Focus & move columns
 
-`Mod + Shift + Equal` / `Minus`Increase / Decrease Window Height (10%) +1
+| Keys | Action |
+|------|--------|
+| `Mod` + `H` / `Mod` + `←` | Focus column left |
+| `Mod` + `L` / `Mod` + `→` | Focus column right |
+| `Mod` + `Home` | Focus first column |
+| `Mod` + `End` | Focus last column |
+| `Mod` + `Shift` + `H` / `Mod` + `Shift` + `←` | Move column left |
+| `Mod` + `Shift` + `L` / `Mod` + `Shift` + `→` | Move column right |
+| `Mod` + `Ctrl` + `Home` | Move column to first |
+| `Mod` + `Ctrl` + `End` | Move column to last |
 
-`Mod + Ctrl + R`
+### Resize & display
 
+| Keys | Action |
+|------|--------|
+| `Mod` + `C` | Center column |
+| `Mod` + `Ctrl` + `C` | Center visible columns |
+| `Mod` + `F` | Maximize column |
+| `Mod` + `Ctrl` + `F` | Expand column to available width |
+| `Mod` + `=` | Column width +10% |
+| `Mod` + `−` | Column width −10% |
+| `Mod` + `R` | Cycle preset column width |
+| `Mod` + `W` | Toggle column tabbed display |
 
-`Mod + Shift + R`
+---
 
-Reset Window Height / Switch Preset Height +1
+## Window Management
 
-`Mod + Shift + F`Fullscreen Window 
+### Focus & navigate
 
-`Mod + Shift + T`
+| Keys | Action |
+|------|--------|
+| `Mod` + `K` / `Super` + `U` | Focus window up |
+| `Mod` + `J` / `Super` + `I` | Focus window down |
+| `Mod` + `[` | Consume / expel window left |
+| `Mod` + `]` | Consume / expel window right |
+| `Mod` + `.` | Expel window from column |
 
+### Resize & state
 
-`Mod + Shift + V`
+| Keys | Action |
+|------|--------|
+| `Mod` + `Q` | Close window |
+| `Mod` + `Shift` + `=` | Window height +10% |
+| `Mod` + `Shift` + `−` | Window height −10% |
+| `Mod` + `Ctrl` + `R` | Reset window height |
+| `Mod` + `Shift` + `R` | Cycle preset window height |
+| `Mod` + `Shift` + `F` | Fullscreen window |
+| `Mod` + `Shift` + `T` | Toggle floating |
+| `Mod` + `Shift` + `V` | Switch focus: floating ↔ tiling |
 
-Toggle Floating Window / Switch Focus (Floating/Tiling) 
+---
 
-Export to Sheets---
+## Screenshots & Misc
 
-### Screenshots & Miscellaneous
-
-KeybindAction`Print`
-
-
-`XF86Launch1`
-
-Capture Screenshot 
-
-`Ctrl + Print`
-
-
-`Ctrl + XF86Launch1`
-
-Capture Screenshot of Screen 
-
-`Alt + Print`
-
-
-`Alt + XF86Launch1`
-
-Capture Screenshot of Window 
-
-`Mod + Tab`
-
-
-`Super + O`
-
-Toggle Overview 
-
-`Mod + Shift + Slash`Show Hotkey Overlay 
-
-`Mod + Escape`Toggle Keyboard Shortcuts Inhibit 
-
-`Mod + Shift + E`Quit Window Manager 
-
-Export to Sheets
+| Keys | Action |
+|------|--------|
+| `Print` | Screenshot (region select) |
+| `Ctrl` + `Print` | Screenshot whole screen |
+| `Alt` + `Print` | Screenshot focused window |
+| `Mod` + `Tab` / `Super` + `O` | Toggle overview |
+| `Mod` + `Shift` + `?` | Show hotkey overlay |
+| `Mod` + `Esc` | Toggle keyboard shortcuts inhibit |
+| `Mod` + `Shift` + `E` | Quit / exit WM |
