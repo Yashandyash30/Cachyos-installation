@@ -1,0 +1,193 @@
+
+<h2 class="sr-only">Interactive keybind reference — filter by category and search by action or key</h2>
+<style>
+#kb { padding: 1rem 0; font-family: var(--font-sans); }
+#kb-search { width: 100%; margin-bottom: 1rem; box-sizing: border-box; }
+#kb-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 1.25rem; }
+.kf { cursor: pointer; font-size: 13px; padding: 4px 12px; border-radius: 999px; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); color: var(--color-text-secondary); }
+.kf.on { background: var(--color-background-primary); border-color: var(--color-border-primary); color: var(--color-text-primary); font-weight: 500; }
+#kb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+.kc { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 10px 12px; border-left: 3px solid var(--cc, #888); }
+.kc-cat { font-size: 11px; font-weight: 500; color: var(--cc, #888); margin-bottom: 3px; }
+.kc-act { font-size: 13px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 6px; line-height: 1.3; }
+.kc-keys { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
+.kk { font-family: var(--font-mono); font-size: 11px; padding: 2px 6px; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-secondary); border-radius: 4px; color: var(--color-text-secondary); }
+.kp { font-size: 11px; color: var(--color-text-tertiary); }
+#kb-empty { display: none; text-align: center; padding: 2rem; color: var(--color-text-tertiary); font-size: 14px; }
+</style>
+
+<div id="kb">
+  <input type="text" id="kb-search" placeholder="Search actions or keys…" />
+  <div id="kb-filters"></div>
+  <div id="kb-grid"></div>
+  <div id="kb-empty">No keybinds match your search.</div>
+</div>
+
+<script>
+const cats = {
+  all:       { label: "All", color: "#888780" },
+  launch:    { label: "Launch", color: "#378ADD" },
+  system:    { label: "System", color: "#7F77DD" },
+  media:     { label: "Media", color: "#BA7517" },
+  workspace: { label: "Workspace", color: "#1D9E75" },
+  monitor:   { label: "Monitor", color: "#D85A30" },
+  column:    { label: "Columns", color: "#639922" },
+  window:    { label: "Windows", color: "#D4537E" },
+  misc:      { label: "Misc", color: "#888780" },
+};
+
+const binds = [
+  { keys:["Super","↵"], action:"Open terminal", cat:"launch" },
+  { keys:["Super","B"], action:"Open Zen Browser", cat:"launch" },
+  { keys:["Super","E"], action:"Open Dolphin (files)", cat:"launch" },
+  { keys:["Super","T"], action:"Open Zed editor", cat:"launch" },
+  { keys:["Super","Space"], action:"Application launcher", cat:"launch" },
+  { keys:["Alt","Space"], action:"Walker launcher", cat:"launch" },
+  { keys:["Alt","F"], action:"FSearch (file search)", cat:"launch" },
+  { keys:["Mod","Ctrl","Space"], action:"Fuzzy file search (plocate)", cat:"launch" },
+  { keys:["Mod","Shift","N"], action:"Toggle notepad", cat:"launch" },
+  { keys:["Alt","F4"], action:"Power menu toggle", cat:"system" },
+  { keys:["Mod","Alt","L"], action:"Lock screen", cat:"system" },
+  { keys:["Mod",","], action:"Settings", cat:"system" },
+  { keys:["Ctrl","Alt","Del"], action:"Task manager", cat:"system" },
+  { keys:["Mod","M"], action:"Task manager", cat:"system" },
+  { keys:["Mod","N"], action:"Notification center", cat:"system" },
+  { keys:["Mod","V"], action:"Clipboard manager", cat:"system" },
+  { keys:["Mod","Y"], action:"Browse wallpapers", cat:"system" },
+  { keys:["Mod","Shift","W"], action:"Create window rule", cat:"system" },
+  { keys:["Vol+"], action:"Volume up (+3)", cat:"media" },
+  { keys:["Vol-"], action:"Volume down (−3)", cat:"media" },
+  { keys:["Ctrl","Vol+"], action:"Media volume up (+3)", cat:"media" },
+  { keys:["Ctrl","Vol-"], action:"Media volume down (−3)", cat:"media" },
+  { keys:["Mute"], action:"Toggle mute", cat:"media" },
+  { keys:["Mic mute"], action:"Toggle mic mute", cat:"media" },
+  { keys:["Play/Pause"], action:"Play / pause media", cat:"media" },
+  { keys:["Next"], action:"Next track", cat:"media" },
+  { keys:["Prev"], action:"Previous track", cat:"media" },
+  { keys:["Bright+"], action:"Brightness up (+5)", cat:"media" },
+  { keys:["Bright-"], action:"Brightness down (−5)", cat:"media" },
+  { keys:["Mod","1–9"], action:"Focus workspace 1–9", cat:"workspace" },
+  { keys:["Mod","Shift","1–9"], action:"Move column to workspace 1–9", cat:"workspace" },
+  { keys:["Mod","PgDn"], action:"Focus workspace below", cat:"workspace" },
+  { keys:["Mod","PgUp"], action:"Focus workspace above", cat:"workspace" },
+  { keys:["Super","↓"], action:"Focus workspace below", cat:"workspace" },
+  { keys:["Super","↑"], action:"Focus workspace above", cat:"workspace" },
+  { keys:["Mod","Scroll↓"], action:"Focus workspace below", cat:"workspace" },
+  { keys:["Mod","Scroll↑"], action:"Focus workspace above", cat:"workspace" },
+  { keys:["Mod","Shift","PgDn"], action:"Move workspace down", cat:"workspace" },
+  { keys:["Mod","Shift","PgUp"], action:"Move workspace up", cat:"workspace" },
+  { keys:["Mod","Shift","U"], action:"Move workspace down", cat:"workspace" },
+  { keys:["Mod","Shift","I"], action:"Move workspace up", cat:"workspace" },
+  { keys:["Super","Shift","↓"], action:"Move column to workspace below", cat:"workspace" },
+  { keys:["Super","Shift","↑"], action:"Move column to workspace above", cat:"workspace" },
+  { keys:["Super","Shift","J"], action:"Move column to workspace below", cat:"workspace" },
+  { keys:["Super","Shift","K"], action:"Move column to workspace above", cat:"workspace" },
+  { keys:["Ctrl","Shift","R"], action:"Rename workspace", cat:"workspace" },
+  { keys:["Mod","Ctrl","H"], action:"Focus monitor left", cat:"monitor" },
+  { keys:["Mod","Ctrl","L"], action:"Focus monitor right", cat:"monitor" },
+  { keys:["Mod","Ctrl","K"], action:"Focus monitor up", cat:"monitor" },
+  { keys:["Mod","Ctrl","J"], action:"Focus monitor down", cat:"monitor" },
+  { keys:["Mod","Ctrl","←"], action:"Focus monitor left (arrow)", cat:"monitor" },
+  { keys:["Mod","Ctrl","→"], action:"Focus monitor right (arrow)", cat:"monitor" },
+  { keys:["Super","Ctrl","↑"], action:"Focus monitor up", cat:"monitor" },
+  { keys:["Super","Ctrl","↓"], action:"Focus monitor down", cat:"monitor" },
+  { keys:["Mod","Shift","Ctrl","H"], action:"Move column to monitor left", cat:"monitor" },
+  { keys:["Mod","Shift","Ctrl","L"], action:"Move column to monitor right", cat:"monitor" },
+  { keys:["Mod","Shift","Ctrl","K"], action:"Move column to monitor up", cat:"monitor" },
+  { keys:["Mod","Shift","Ctrl","J"], action:"Move column to monitor down", cat:"monitor" },
+  { keys:["Mod","Shift","P"], action:"Power off monitors", cat:"monitor" },
+  { keys:["Mod","H"], action:"Focus column left", cat:"column" },
+  { keys:["Mod","L"], action:"Focus column right", cat:"column" },
+  { keys:["Mod","←"], action:"Focus column left (arrow)", cat:"column" },
+  { keys:["Mod","→"], action:"Focus column right (arrow)", cat:"column" },
+  { keys:["Mod","Home"], action:"Focus first column", cat:"column" },
+  { keys:["Mod","End"], action:"Focus last column", cat:"column" },
+  { keys:["Mod","Shift","H"], action:"Move column left", cat:"column" },
+  { keys:["Mod","Shift","L"], action:"Move column right", cat:"column" },
+  { keys:["Mod","Ctrl","Home"], action:"Move column to first", cat:"column" },
+  { keys:["Mod","Ctrl","End"], action:"Move column to last", cat:"column" },
+  { keys:["Mod","C"], action:"Center column", cat:"column" },
+  { keys:["Mod","Ctrl","C"], action:"Center visible columns", cat:"column" },
+  { keys:["Mod","F"], action:"Maximize column", cat:"column" },
+  { keys:["Mod","Ctrl","F"], action:"Expand column to available width", cat:"column" },
+  { keys:["Mod","="], action:"Column width +10%", cat:"column" },
+  { keys:["Mod","−"], action:"Column width −10%", cat:"column" },
+  { keys:["Mod","R"], action:"Cycle preset column width", cat:"column" },
+  { keys:["Mod","W"], action:"Toggle column tabbed display", cat:"column" },
+  { keys:["Mod","Q"], action:"Close window", cat:"window" },
+  { keys:["Mod","K"], action:"Focus window up", cat:"window" },
+  { keys:["Mod","J"], action:"Focus window down", cat:"window" },
+  { keys:["Super","U"], action:"Focus window up", cat:"window" },
+  { keys:["Super","I"], action:"Focus window down", cat:"window" },
+  { keys:["Mod","["], action:"Consume / expel window left", cat:"window" },
+  { keys:["Mod","]"], action:"Consume / expel window right", cat:"window" },
+  { keys:["Mod","."], action:"Expel window from column", cat:"window" },
+  { keys:["Mod","Shift","="], action:"Window height +10%", cat:"window" },
+  { keys:["Mod","Shift","−"], action:"Window height −10%", cat:"window" },
+  { keys:["Mod","Ctrl","R"], action:"Reset window height", cat:"window" },
+  { keys:["Mod","Shift","R"], action:"Cycle preset window height", cat:"window" },
+  { keys:["Mod","Shift","F"], action:"Fullscreen window", cat:"window" },
+  { keys:["Mod","Shift","T"], action:"Toggle window floating", cat:"window" },
+  { keys:["Mod","Shift","V"], action:"Switch focus: floating / tiling", cat:"window" },
+  { keys:["Print"], action:"Screenshot region", cat:"misc" },
+  { keys:["Ctrl","Print"], action:"Screenshot whole screen", cat:"misc" },
+  { keys:["Alt","Print"], action:"Screenshot focused window", cat:"misc" },
+  { keys:["Mod","Tab"], action:"Toggle overview", cat:"misc" },
+  { keys:["Super","O"], action:"Toggle overview", cat:"misc" },
+  { keys:["Mod","Shift","?"], action:"Show hotkey overlay", cat:"misc" },
+  { keys:["Mod","Esc"], action:"Toggle keyboard shortcuts inhibit", cat:"misc" },
+  { keys:["Mod","Shift","E"], action:"Quit / exit WM", cat:"misc" },
+];
+
+const filterWrap = document.getElementById('kb-filters');
+let active = 'all';
+
+Object.entries(cats).forEach(([id, {label}]) => {
+  const n = id === 'all' ? binds.length : binds.filter(b=>b.cat===id).length;
+  const btn = document.createElement('button');
+  btn.className = 'kf' + (id==='all' ? ' on' : '');
+  btn.textContent = label + ' (' + n + ')';
+  btn.dataset.cat = id;
+  btn.addEventListener('click', () => {
+    active = id;
+    document.querySelectorAll('.kf').forEach(b => b.classList.toggle('on', b.dataset.cat===id));
+    render();
+  });
+  filterWrap.appendChild(btn);
+});
+
+document.getElementById('kb-search').addEventListener('input', render);
+
+function render() {
+  const q = document.getElementById('kb-search').value.toLowerCase();
+  const grid = document.getElementById('kb-grid');
+  grid.innerHTML = '';
+  let n = 0;
+  binds.forEach(b => {
+    if (active !== 'all' && b.cat !== active) return;
+    if (q && !(b.action.toLowerCase().includes(q) || b.keys.join(' ').toLowerCase().includes(q))) return;
+    n++;
+    const color = cats[b.cat].color;
+    const card = document.createElement('div');
+    card.className = 'kc';
+    card.style.setProperty('--cc', color);
+    const badge = document.createElement('div');
+    badge.className = 'kc-cat';
+    badge.textContent = cats[b.cat].label;
+    const act = document.createElement('div');
+    act.className = 'kc-act';
+    act.textContent = b.action;
+    const kw = document.createElement('div');
+    kw.className = 'kc-keys';
+    b.keys.forEach((k,i) => {
+      if (i > 0) { const p = document.createElement('span'); p.className='kp'; p.textContent='+'; kw.appendChild(p); }
+      const chip = document.createElement('span'); chip.className='kk'; chip.textContent=k; kw.appendChild(chip);
+    });
+    card.appendChild(badge); card.appendChild(act); card.appendChild(kw);
+    grid.appendChild(card);
+  });
+  document.getElementById('kb-empty').style.display = n===0 ? 'block' : 'none';
+}
+
+render();
+</script>
