@@ -18,7 +18,7 @@ KeybindAction`Super + Return`Open Terminal (ghostty)
 
 `Mod + Shift + N`Open Notepad 
 
-Export to Sheets---
+---
 
 ### System & Shell Controls
 
@@ -43,7 +43,7 @@ Task Manager +1
 
 `Mod + Shift + W`Create Window Rule 
 
-Export to Sheets---
+---
 
 ### Media & Hardware Controls
 
@@ -89,7 +89,7 @@ Next / Previous Media Track +1
 
 Screen Brightness Up / Down 
 
-Export to Sheets---
+---
 
 ### Workspace Management
 
@@ -126,7 +126,7 @@ Move Column to Workspace Up / Down
 
 `Ctrl + Shift + R`Rename Workspace 
 
-Export to Sheets---
+---
 
 ### Monitor Management
 
@@ -160,7 +160,7 @@ Move Column to Monitor Up / Down +1
 
 `Mod + Shift + P`Power Off Monitors 
 
-Export to Sheets---
+s---
 
 ### Column Management
 
@@ -202,7 +202,7 @@ Maximize Column / Expand to Available Width +1
 
 `Mod + W`Toggle Tabbed Display 
 
-Export to Sheets---
+---
 
 ### Window Management
 
