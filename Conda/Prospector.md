@@ -97,7 +97,7 @@ python -m ipykernel install --user --name=prospector --display-name="PROSPECTOR"
 
 Completely close and reopen Visual Studio Code to flush its cache. Open your `.ipynb` notebook, select the clearly labeled **PROSPECTOR** kernel from the top-right menu, and run this cell:
 
-```python
+```bash
 import os
 import numpy as np
 import scipy
@@ -113,10 +113,10 @@ print(f"SPS_HOME path:       {os.environ.get('SPS_HOME')}")
 
 print("\nFiring up the Fortran engines...")
 try:
-sp = fsps.StellarPopulation(zcontinuous=1)
-print("SUCCESS: Ready to model some galaxies!")
+    sp = fsps.StellarPopulation(zcontinuous=1)
+    print("SUCCESS: Ready to model some galaxies!")
 except Exception as e:
-print(f"ERROR: {e}")
+    print(f"ERROR: {e}")
 
 # Just for fun
 import antigravity
