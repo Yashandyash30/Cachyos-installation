@@ -31,7 +31,6 @@ jupyter kernelspec uninstall prospector -y
 > ```
 > Then restart your terminal and try again.
 >
->
 
 ---
 
@@ -44,7 +43,6 @@ mkdir -p ~/Prospectus
 cd ~/Prospectus
 
 git clone [https://github.com/cconroy20/fsps.git](https://github.com/cconroy20/fsps.git)
-
 ```
 
 ---
@@ -70,14 +68,12 @@ ipykernel \
 fortran-compiler \
 compilers \
 -y
-
 ```
 
 Then activate it:
 
 ```code snippet
 conda activate prospector
-
 ```
 
 ---
@@ -99,14 +95,12 @@ set -Ux SPS_HOME $HOME/Prospectus/fsps
 
 # Also set it inside the Conda environment directly
 conda env config vars set SPS_HOME="$HOME/Prospectus/fsps"
-
 ```
 
 ### Step 4.2 — Set a default browser for Jupyter under Niri
 
 ```code snippet
 set -Ux BROWSER /usr/bin/zen-browser
-
 ```
 
 ### Step 4.3 — Cycle the environment to lock in the variables
@@ -114,7 +108,6 @@ set -Ux BROWSER /usr/bin/zen-browser
 ```code snippet
 conda deactivate
 conda activate prospector
-
 ```
 
 ---
@@ -132,7 +125,6 @@ This prevents CachyOS's system linker from interfering during the Fortran `fsps`
 ```code snippet
 set -gx LDFLAGS "-L$CONDA_PREFIX/lib"
 set -gx CPPFLAGS "-I$CONDA_PREFIX/include"
-
 ```
 
 ### Step 5.2 — Install the packages in order
@@ -146,9 +138,7 @@ python -m pip install astro-sedpy
 
 # 3. Correct Prospector (NOT plain "prospector")
 python -m pip install astro-prospector
-
 ```
-
 ---
 
 ## Part 6 — Register the Jupyter Kernel
@@ -159,9 +149,7 @@ Register the environment with a clear, unmistakable label so you always know whi
 python -m ipykernel install --user \
 --name=prospector \
 --display-name="PROSPECTOR (Stable Release)"
-
 ```
-
 ---
 
 ## Part 7 — The Final Verification
@@ -177,9 +165,7 @@ print("--- STABLE SYSTEM CHECK ---")
 print(f"Prospector version: {prospect.__version__}")
 print(f"FSPS version:       {fsps.__version__}")
 print(f"Dynesty version:    {dynesty.__version__}")
-
 ```
-
 ---
 
 ## Quick Reference
@@ -197,7 +183,6 @@ Correct pip packages:
 fsps                python -m pip install fsps
 sedpy               python -m pip install astro-sedpy      ← NOT "sedpy"
 prospector          python -m pip install astro-prospector ← NOT "prospector"
-
 ```
 
 ### Common mistakes that break the install
