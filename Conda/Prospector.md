@@ -28,9 +28,7 @@ jupyter kernelspec uninstall prospector -y
 >
 > ```code snippet
 > ~/miniforge3/condabin/conda init fish
->
 > ```
->
 > Then restart your terminal and try again.
 >
 >
