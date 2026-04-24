@@ -194,5 +194,3 @@ prospector          python -m pip install astro-prospector ← NOT "prospector"
 | Installing latest Dynesty | `ValueError: too many values to unpack` | Pin `dynesty=2.0.3` via conda/mamba |
 | Elephant/Conda not init'd in Fish | `conda: command not found` | Run `~/miniforge3/condabin/conda init fish` |
 | Using system Fortran compiler | Linker errors during `fsps` build | Install `fortran-compiler compilers` via mamba |
-
-Export to Sheets
