@@ -150,7 +150,7 @@ python -m ipykernel install --user \
 ### Part 7 : The Final Verification
 Open VS Code/Jupyter, select your brand new PROSPECTOR (Stable Release) kernel, and run this to confirm you are on the safe version:
 
-'''bash
+```fish
 import prospect
 import fsps
 import dynesty
@@ -159,7 +159,7 @@ print("--- STABLE SYSTEM CHECK ---")
 print(f"Prospector version: {prospect.__version__}")
 print(f"FSPS version:       {fsps.__version__}")
 print(f"Dynesty version:    {dynesty.__version__}")
-'''
+```
 
 
 ## Part 8 — Anti-Deadlock Notebook Setup
