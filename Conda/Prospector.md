@@ -1,7 +1,7 @@
 # Prospector Installation Guide
 ### CachyOS · Fish Shell · Niri · Conda
 
-This guide bypasses every known trap when installing Prospector on CachyOS: PyPI naming collisions, system compiler mismatches, Niri/Wayland display issues, and Fortran CPU deadlocks.
+This guide bypasses every known trap when installing Prospector on CachyOS: PyPI naming collisions, system compiler mismatches, Niri/Wayland display issues, and library version mismatches.
 
 ---
 
@@ -21,13 +21,19 @@ rm -rf ~/Prospectus/prospector
 
 # Remove the stale Jupyter kernel so VS Code doesn't load the wrong one
 jupyter kernelspec uninstall prospector -y
+
 ```
 
 > If conda isn't responding in Fish, re-initialize it:
-> ```fish
+>
+> ```code snippet
 > ~/miniforge3/condabin/conda init fish
+>
 > ```
+>
 > Then restart your terminal and try again.
+>
+>
 
 ---
 
@@ -35,11 +41,12 @@ jupyter kernelspec uninstall prospector -y
 
 Prospector requires the raw Fortran stellar population data tables to be present locally on your machine before any Python code can run.
 
-```fish
+```code snippet
 mkdir -p ~/Prospectus
 cd ~/Prospectus
 
-git clone https://github.com/cconroy20/fsps.git
+git clone [https://github.com/cconroy20/fsps.git](https://github.com/cconroy20/fsps.git)
+
 ```
 
 ---
@@ -48,25 +55,31 @@ git clone https://github.com/cconroy20/fsps.git
 
 Lock the environment to Python 3.11 and install the Fortran compilers **inside Conda**, not from the system. This isolates the build from CachyOS's rapidly updating system compilers, which frequently cause linker errors on Arch-based systems.
 
-```fish
+> **The Dynesty Version Mismatch:** This is a classic library version mismatch. Prospector 1.4.1 has a `try/except` block specifically looking for older Dynesty formats. The Dynesty developers recently updated their sampler to return a new number of values in that tuple (16 values). Prospector 1.4.1 doesn't know how to unpack the new Dynesty format, so it crashes. To correct for this, we must downgrade dynesty to the "Goldilocks" version that Prospector 1.4.1 was specifically built to handle: **version 2.0.3**.
+>
+>
+
+```code snippet
 mamba create -n prospector \
-    python=3.11 \
-    dynesty \
-    astroquery \
-    h5py \
-    matplotlib \
-    astropy \
-    threadpoolctl \
-    ipykernel \
-    fortran-compiler \
-    compilers \
-    -y
+python=3.11 \
+dynesty=2.0.3 \
+astroquery \
+h5py \
+matplotlib \
+astropy \
+threadpoolctl \
+ipykernel \
+fortran-compiler \
+compilers \
+-y
+
 ```
 
 Then activate it:
 
-```fish
+```code snippet
 conda activate prospector
+
 ```
 
 ---
@@ -82,25 +95,28 @@ Two issues specific to Fish + Niri need to be fixed here:
 
 Set it in Fish permanently and also bake it into the Conda environment as a failsafe:
 
-```fish
+```code snippet
 # Permanent Fish variable (survives reboots and new terminals)
 set -Ux SPS_HOME $HOME/Prospectus/fsps
 
 # Also set it inside the Conda environment directly
 conda env config vars set SPS_HOME="$HOME/Prospectus/fsps"
+
 ```
 
 ### Step 4.2 — Set a default browser for Jupyter under Niri
 
-```fish
+```code snippet
 set -Ux BROWSER /usr/bin/zen-browser
+
 ```
 
 ### Step 4.3 — Cycle the environment to lock in the variables
 
-```fish
+```code snippet
 conda deactivate
 conda activate prospector
+
 ```
 
 ---
@@ -115,14 +131,15 @@ There is a PyPI naming collision — the plain `sedpy` package on PyPI is a diff
 
 This prevents CachyOS's system linker from interfering during the Fortran `fsps` build:
 
-```fish
+```code snippet
 set -gx LDFLAGS "-L$CONDA_PREFIX/lib"
 set -gx CPPFLAGS "-I$CONDA_PREFIX/include"
+
 ```
 
 ### Step 5.2 — Install the packages in order
 
-```fish
+```code snippet
 # 1. Fortran FSPS wrapper
 python -m pip install fsps
 
@@ -131,6 +148,7 @@ python -m pip install astro-sedpy
 
 # 3. Correct Prospector (NOT plain "prospector")
 python -m pip install astro-prospector
+
 ```
 
 ---
@@ -139,18 +157,20 @@ python -m pip install astro-prospector
 
 Register the environment with a clear, unmistakable label so you always know which kernel VS Code is using:
 
-```fish
+```code snippet
 python -m ipykernel install --user \
-    --name=prospector \
-    --display-name="PROSPECTOR (Stable 3.11)"
+--name=prospector \
+--display-name="PROSPECTOR (Stable Release)"
+
 ```
 
 ---
 
-### Part 7 : The Final Verification
+## Part 7 — The Final Verification
+
 Open VS Code/Jupyter, select your brand new PROSPECTOR (Stable Release) kernel, and run this to confirm you are on the safe version:
 
-```fish
+```python
 import prospect
 import fsps
 import dynesty
@@ -159,48 +179,8 @@ print("--- STABLE SYSTEM CHECK ---")
 print(f"Prospector version: {prospect.__version__}")
 print(f"FSPS version:       {fsps.__version__}")
 print(f"Dynesty version:    {dynesty.__version__}")
+
 ```
-
-
-## Part 8 — Anti-Deadlock Notebook Setup
-
-**This is mandatory.** Prospector's Fortran `compute_zdep` function will silently deadlock your CPU if it's allowed to spawn multiple threads. The fix must be applied before any other import in your notebook.
-
-Make this **Cell 1** of every Prospector notebook:
-
-```python
-import os
-
-# Kill all Fortran/C multithreading before any imports
-# These must be set before numpy, fsps, or prospect are imported
-os.environ["OMP_NUM_THREADS"]          = "1"
-os.environ["MKL_NUM_THREADS"]          = "1"
-os.environ["NUMEXPR_NUM_THREADS"]      = "1"
-os.environ["OPENBLAS_NUM_THREADS"]     = "1"
-os.environ["VECLIB_MAXIMUM_THREADS"]   = "1"
-
-# Verify the full pipeline loaded correctly
-import prospect
-import fsps
-import dynesty
-import sedpy
-
-print("--- SYSTEM CHECK ---")
-print(f"Prospector : {prospect.__version__}")
-print(f"FSPS       : {fsps.__version__}")
-print(f"Dynesty    : {dynesty.__version__}")
-print(f"Sedpy      : {sedpy.__version__}")
-print(f"SPS_HOME   : {os.environ.get('SPS_HOME')}")
-
-print("\nInitialising Fortran engines...")
-try:
-    sp = fsps.StellarPopulation(zcontinuous=1)
-    print("✅ Pipeline is operational.")
-except Exception as e:
-    print(f"❌ Error: {e}")
-```
-
-> Select the **PROSPECTOR (Stable 3.11)** kernel in VS Code before running this cell (bottom-right corner of the notebook interface).
 
 ---
 
@@ -209,23 +189,27 @@ except Exception as e:
 ```
 Environment name      prospector
 Python version        3.11
+Dynesty version       2.0.3
 FSPS data path        ~/Prospectus/fsps
 SPS_HOME (Fish)       set -Ux SPS_HOME $HOME/Prospectus/fsps
 Activate env          conda activate prospector
 Rebuild from scratch  start from Part 1
 
 Correct pip packages:
-  fsps                python -m pip install fsps
-  sedpy               python -m pip install astro-sedpy      ← NOT "sedpy"
-  prospector          python -m pip install astro-prospector ← NOT "prospector"
+fsps                python -m pip install fsps
+sedpy               python -m pip install astro-sedpy      ← NOT "sedpy"
+prospector          python -m pip install astro-prospector ← NOT "prospector"
+
 ```
 
 ### Common mistakes that break the install
 
 | Mistake | Result | Fix |
-|---|---|---|
+| --- | --- | --- |
 | `pip install sedpy` | Installs wrong package (code linter) | Use `astro-sedpy` |
 | `pip install prospector` | Installs wrong package (code linter) | Use `astro-prospector` |
-| Missing thread limiters in Cell 1 | CPU deadlock on `compute_zdep` | Add all 5 `os.environ` lines before any imports |
+| Installing latest Dynesty | `ValueError: too many values to unpack` | Pin `dynesty=2.0.3` via conda/mamba |
 | Elephant/Conda not init'd in Fish | `conda: command not found` | Run `~/miniforge3/condabin/conda init fish` |
 | Using system Fortran compiler | Linker errors during `fsps` build | Install `fortran-compiler compilers` via mamba |
+
+Export to Sheets
