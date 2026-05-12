@@ -42,7 +42,7 @@ Prospector requires the raw Fortran stellar population data tables to be present
 mkdir -p ~/Prospectus
 cd ~/Prospectus
 
-git clone [https://github.com/cconroy20/fsps.git](https://github.com/cconroy20/fsps.git)
+git clone https://github.com/cconroy20/fsps.git
 ```
 
 ---
