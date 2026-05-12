@@ -39,9 +39,10 @@ Add this `environment` block at the top level:
 
 ```
 environment {
-    QT_QPA_PLATFORMTHEME "qt6ct"
-    QT_STYLE_OVERRIDE "kvantum"
-    FILEMANAGER "dolphin"
+  XDG_CURRENT_DESKTOP "niri"
+  XDG_MENU_PREFIX "plasma-"
+  QT_QPA_PLATFORMTHEME "qt6ct"
+  FILEMANAGER "dolphin"
 }
 ```
 
