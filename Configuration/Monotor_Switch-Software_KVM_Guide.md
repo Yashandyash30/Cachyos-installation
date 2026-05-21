@@ -100,7 +100,7 @@ Open `~/.config/niri/config.kdl`. Assuming the PC is targeting a laptop on **HDM
     // =========================================
     // Switch MSI monitor to Laptop (HDMI-2)
     // =========================================
-    Super+D { spawn "ddcutil" "-d" "2" "setvcp" "60" "0x12"; }
+    Super+Shift+D { spawn "ddcutil" "-d" "2" "setvcp" "60" "0x12"; }
 
 ```
 
@@ -112,7 +112,7 @@ Open `~/.config/niri/config.kdl`. Assuming the laptop is targeting a PC on **HDM
     // =========================================
     // Switch MSI monitor back to Main PC (HDMI-1)
     // =========================================
-    Super+D { spawn "ddcutil" "setvcp" "60" "0x11"; }
+    Super+Shift+D { spawn "ddcutil" "setvcp" "60" "0x11"; }
 
 ```
 
