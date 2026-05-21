@@ -37,6 +37,12 @@ pip install pyraf
 
 ---
 
+To install the pre-compiled binary system-wide, run this instead:
+
+```bash
+paru -S ds9-bin
+```
+
 ## Step 4: Initialize Your Working Directory
 
 IRAF requires a configuration file (`login.cl`) in the directory where your data lives. You must do this once for every new project folder.
