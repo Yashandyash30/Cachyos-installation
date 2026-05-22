@@ -55,6 +55,24 @@ systemctl --user enable --now sunshine
 
 *(To check if it is running smoothly in the background, use: systemctl --user status sunshine)*
 
+> **Troubleshooting: "Unit sunshine.service does not exist"**
+> 
+> Depending on how the CachyOS package was built, the systemd service might not be named simply `sunshine`. It often uses the full application domain name instead.
+> 
+> If `systemctl` fails to find the service, locate the exact file name by running:
+> ```bash
+> pacman -Ql sunshine | grep \.service
+> ```
+> 
+> If the output shows `/usr/lib/systemd/user/app-dev.lizardbyte.app.Sunshine.service`, you must use that exact name to enable and start it:
+> 
+> ```bash
+> systemctl --user daemon-reload
+> systemctl --user enable --now app-dev.lizardbyte.app.Sunshine
+> systemctl --user status app-dev.lizardbyte.app.Sunshine
+> ```
+> *(Note: Any future commands to restart or stop the service must also use this full name).*
+
 ## Phase 4: Identify Your GPU Rendering Nodes
 
 Because you have a hybrid setup (Ryzen APU + NVIDIA GTX 1650), your system has two rendering devices, typically `/dev/dri/renderD128` and `/dev/dri/renderD129`. You need to identify which is which before configuring Sunshine.
