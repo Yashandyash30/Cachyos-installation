@@ -133,3 +133,86 @@ systemctl --user restart sunshine
 The very first time you connect from your client device (like Moonlight on a tablet or phone), look at your laptop screen. Wayland uses `xdg-desktop-portal` for security, meaning a Niri/GNOME prompt will pop up asking for permission to "Share this screen."
 
 You must click **Allow** before the video feed will push through to your client.
+
+Here are the additions you can copy and paste directly into your "Ultimate CachyOS + Niri Sunshine Guide".
+
+This covers everything we just went through, including the specific Wayland/Niri quirks.
+
+---
+
+## Phase 7: Installing & Pairing Moonlight (The Client)
+
+*(Note: The host software that sends the stream is **Sunshine**. The client software that receives the stream is **Moonlight**!)*
+
+To allow your machines to stream to each other, you need Moonlight installed on any device that will act as a client.
+
+**1. Install Moonlight**
+Run this on your CachyOS machines:
+
+```bash
+sudo pacman -Syu moonlight-qt
+
+```
+
+**2. Pair the Devices**
+Because your local firewall (`ufw`) is already configured, auto-discovery will work instantly on your local network.
+
+1. Open **Moonlight** on the client machine.
+2. Click the icon for your host PC/Laptop. Moonlight will display a 4-digit PIN.
+3. Open the Sunshine Web UI on the host machine (`https://localhost:47990` or via its local IP).
+4. Click the **PIN** tab at the top and enter the 4-digit PIN to authorize the connection.
+
+---
+
+## Phase 8: Crucial Wayland & Niri Quirks
+
+Wayland’s strict security model introduces a few hurdles when streaming. Keep these in mind for a smooth experience:
+
+### 1. The "First Launch" Screen Share Prompt
+
+The very first time you launch a Desktop session from Moonlight, the stream will appear to hang. Look at the physical screen of your **host** machine. Wayland uses `xdg-desktop-portal` for security, meaning a prompt will pop up asking for permission to "Share this screen." You must physically click **Allow** on the host before the video feed will push through.
+
+### 2. The "Greedy" Super Key (Keyboard Capturing)
+
+If you press global Niri shortcuts (like `Super + Enter`) while streaming, they will trigger on your *local* machine instead of the remote host because Niri intercepts them first.
+
+**To fix this:**
+
+* **Method 1:** In Moonlight, click the Settings (Gear icon) -> Input Settings -> **Capture system keyboard shortcuts** and set it to **Always** (or ensure you are playing in true Fullscreen mode, as Wayland often denies keyboard inhibiting to windowed apps).
+* **Method 2:** While actively streaming, press `Ctrl + Alt + Shift + Z` to instantly toggle keyboard capture on or off.
+
+### 3. Wayland Shell Crashes (`wlr-screencopy`)
+
+When Moonlight connects, Sunshine uses the `wlr-screencopy` protocol to aggressively hook into your Wayland compositor. If you are using bleeding-edge `-git` packages for your panels or shells (like `quickshell-git`), they may panic and crash when this hook occurs.
+
+* **Fix:** Always use the stable release of your Wayland shell to ensure compatibility with screen capturing.
+
+### 4. Eradicating Legacy X11 Commands (The `xrandr` Ghost)
+
+If your stream instantly crashes or fails to connect, check your Sunshine logs (`~/.config/sunshine/sunshine.log`) for `xrandr` errors. Old X11 display commands will fatally clash with a pure Wayland environment like Niri.
+
+If the Sunshine Web UI does not show any commands in the **Global Prep Commands** or Application settings, the ghost command is likely stuck in the raw config files.
+
+**To kill it:**
+
+1. Open your apps configuration:
+```bash
+nano ~/.config/sunshine/apps.json
+
+```
+
+
+2. Find the "do" and "undo" lines containing `xrandr` commands.
+3. Delete the text *inside* the quotes, leaving them empty:
+```json
+"do": "",
+"undo": ""
+
+```
+
+
+4. Save the file and restart the host service:
+```bash
+systemctl --user restart app-dev.lizardbyte.app.Sunshine
+
+```
