@@ -43,7 +43,7 @@ sudo pacman -S libva-mesa-driver mesa-vdpau
 #Intel
 sudo pacman -S intel-media-driver
 ```
-> These drivers let your AMD Ryzen ot Intel chip decode the theme's background video using the GPU rather than the CPU.
+> These drivers let your AMD Ryzen or Intel chip decode the theme's background video using the GPU rather than the CPU.
 
 ---
 
@@ -113,7 +113,7 @@ cd ~/Downloads/qylock
 
 ## Part 5 — Always Test Before Rebooting
 
-**Never reboot without testing the theme first.** A broken theme produces a black screen at boot, which requires TTY recovery to fix (see Part 7).
+**Never reboot without testing the theme first.** A broken theme produces a black screen at boot, which requires TTY recovery to fix (see Part 8).
 
 Run the Qt6 test command, replacing `forest` with your chosen theme name:
 
@@ -126,44 +126,55 @@ sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/forest
 | Result | Meaning |
 |---|---|
 | A window appears, video plays, password box is clickable | ✅ Safe to reboot |
-| Black window or instant crash | ❌ Do not reboot — see Part 6 |
+| Black window or instant crash | ❌ Do not reboot — see Part 7 |
 
 > **Ignore** terminal warnings about "Socket errors" or "CUDA" — test mode intentionally blocks password verification, and Qt6 often complains about NVIDIA libraries before falling back to your AMD GPU harmlessly.
 
 ---
 
-## Part 6 - Add the Fish Abbreviations
+## Part 6 — Add the Fish Abbreviations
 
 Append your custom shortcuts to your Fish configuration file so they load automatically.
 
 Open your config file:
 
+```
+nano ~/.config/fish/config.fish
+```
 
-    nano ~/.config/fish/config.fish
+Paste your abbreviations at the bottom of the file:
 
-Paste your abbreviations at the bottom of the file
+```
+# Qylock SDDM Theme Management
+abbr -a theme "cd ~/Downloads/qylock && ./sddm.sh"
+abbr -a theme-test "sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/"
+```
 
-    # Qylock SDDM Theme Management
-    abbr -a theme "cd ~/Downloads/qylock && ./sddm.sh"
-    abbr -a theme-test "sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/"
-If you clone repo in Home folder use thsi instead:
+If you cloned the repo in your Home folder, use this instead:
 
-    # Qylock SDDM Theme Management
-    abbr -a theme "cd ~/qylock && ./sddm.sh"
-    abbr -a theme-test "sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/"
+```
+# Qylock SDDM Theme Management
+abbr -a theme "cd ~/qylock && ./sddm.sh"
+abbr -a theme-test "sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/"
+```
+
 Save and exit, then reload your Fish shell to apply the changes:
 
-    source ~/.config/fish/config.fish
+```
+source ~/.config/fish/config.fish
+```
 
-4. Install and Test Themes
+### Install and Test Themes
 
-Now you can use your newly created abbreviations to manage your cozy login screens natively in your terminal.
+Now you can use your newly created abbreviations to manage your login screens natively in your terminal.
 
 To install or configure a theme:
-    Type `theme` in your terminal. This will automatically navigate to the Qylock folder and execute the installation script.
+Type `theme` in your terminal. This will automatically navigate to the Qylock folder and execute the installation script.
 
 To test a theme without logging out:
-    Type `theme-test [ThemeName]` (e.g., `theme-test qylock-cozy`). The --test-mode flag will open a window on your current desktop displaying exactly what the SDDM login screen will look like, saving you from having to reboot repeatedly while customizing.
+Type `theme-test [ThemeName]` (e.g., `theme-test qylock-cozy`). The `--test-mode` flag will open a window on your current desktop displaying exactly what the SDDM login screen will look like, saving you from having to reboot repeatedly while customizing.
+
+---
 
 ## Part 7 — Troubleshooting
 
@@ -183,6 +194,57 @@ Current=forest
 ```
 
 Save and exit (**Ctrl+O → Enter**, then **Ctrl+X**), then test with the command from Part 5 before rebooting.
+
+---
+
+### CachyOS: Script says "SDDM is not installed" / Theme Never Appears
+
+> **This affects CachyOS systems that have been updated or factory-reset recently.**
+
+Recent versions of CachyOS ship with **Plasma Login Manager** (`plasmalogin`) instead of classic SDDM. It looks identical to the default Breeze login screen, but it is a completely different service — which is why the Qylock script throws a *"SDDM is not installed"* error and why themes never show up after install.
+
+**Step 1 — Confirm this is your situation**
+
+Run the following and check the output:
+
+```bash
+systemctl status display-manager | grep -i loaded
+```
+
+If you see `plasmalogin.service` in the output (instead of `sddm.service`), this is your issue. Continue with the steps below.
+
+**Step 2 — Make sure classic SDDM is installed**
+
+```bash
+sudo pacman -S --needed sddm qt6-5compat qt6-declarative qt6-svg
+```
+
+**Step 3 — Swap the services**
+
+Disable the CachyOS default and enable classic SDDM:
+
+```bash
+sudo systemctl disable plasmalogin.service
+sudo systemctl enable sddm.service
+```
+
+**Step 4 — Reboot**
+
+Because you are swapping the service that controls your entire graphical session, a full reboot is required:
+
+```bash
+sudo reboot
+```
+
+**Step 5 — Run Qylock again**
+
+Once the system is back up, you will be running classic SDDM. Open your terminal and run the install script:
+
+```bash
+./sddm.sh
+```
+
+It will detect SDDM correctly this time. Install your theme, test it with `theme-test`, then reboot.
 
 ---
 
@@ -234,4 +296,9 @@ Test theme           sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes
 SDDM config file     /etc/sddm.conf.d/theme.conf
 Font directory       /usr/share/fonts/
 Emergency TTY        Ctrl + Alt + F3
+
+CachyOS fix          systemctl status display-manager | grep -i loaded
+                     → if plasmalogin: sudo systemctl disable plasmalogin.service
+                                       sudo systemctl enable sddm.service
+                                       sudo reboot
 ```
