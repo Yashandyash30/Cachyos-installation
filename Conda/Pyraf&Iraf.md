@@ -154,3 +154,44 @@ pip install pyraf
 # 5. Export DS9 so it's launchable from the host
 distrobox-export --app ds9
 ```
+
+Here is a drop-in replacement section you can copy and paste directly into your existing guide. This will completely replace your original **Step 2** and **Step 3**, and properly bridge the gap to your Jupyter setup.
+
+---
+
+## Step 2: Automated Environment Setup (YAML)
+
+Instead of manually installing packages one by one, we use a pre-configured YAML file. This guarantees that all required dependencies—including the core astronomy stack, PyRAF, and the Jupyter kernel connector (`ipykernel`)—are resolved and installed flawlessly.
+
+Create a file named `pyraf.yml` in your current directory and paste your configuration into it. Once saved, run the following command to build the entire environment at once:
+
+```bash
+mamba env create -f ~/conda-backups/pyraf_portable.yml
+
+```
+
+> **Note:** Mamba will read the file, download the standard astronomy stack via Conda, and automatically run the `pip install pyraf` step at the very end.
+
+---
+
+## Step 3: Activate and Register the Jupyter Kernel
+
+Now that the environment is built, activate it.
+
+```bash
+mamba activate pyraf
+
+```
+
+To ensure Jupyter Notebook recognizes this specific PyRAF installation, you must explicitly register the kernel. Run this command while the environment is active:
+
+```bash
+python -m ipykernel install --user --name pyraf --display-name "Python (PyRAF)"
+
+```
+
+> **Verification:** The next time you launch a Jupyter Notebook, "Python (PyRAF)" will appear in your kernel dropdown menu and will be perfectly linked to your host system's IRAF binaries.
+
+---
+
+*(Proceed directly to Step 4: Initialize Your Working Directory)*
