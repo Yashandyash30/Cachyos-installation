@@ -18,23 +18,32 @@ sudo pacman -S \
     fzf
 ```
 
-### Step 1.2 — AMD hardware video decoding drivers
+### Step 1.2. — AMD or Intel hardware video decoding drivers
 
-`libva-mesa-driver` and `mesa-vdpau` are usually pre-installed on CachyOS. Check first:
+`libva-mesa-driver` and `mesa-vdpau` (AMD) and `intel-media-driver`(Intel) are usually pre-installed on CachyOS. Check first:
 
 ```bash
+#AMD
 pacman -Q libva-mesa-driver mesa-vdpau
 ```
-
-**If both lines print a version number** (e.g. `libva-mesa-driver 24.x.x`) — already installed, skip this step.
+```bash
+#Intel
+pacman -Q intel-media-driver
+```
+**If both lines print a version number** (e.g. `intel-media-driver` or `libva-mesa-driver 24.x.x`) — already installed, skip this step.
 
 **If either line shows `error: package 'X' was not found`** — install the missing one(s):
 
 ```bash
+#AMD
 sudo pacman -S libva-mesa-driver mesa-vdpau
 ```
 
-> These drivers let your AMD Ryzen chip decode the theme's background video using the GPU rather than the CPU.
+```bash
+#Intel
+sudo pacman -S intel-media-driver
+```
+> These drivers let your AMD Ryzen ot Intel chip decode the theme's background video using the GPU rather than the CPU.
 
 ---
 
