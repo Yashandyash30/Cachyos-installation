@@ -177,26 +177,6 @@ Type `theme-test [ThemeName]` (e.g., `theme-test qylock-cozy`). The `--test-mode
 ---
 
 ## Part 7 — Troubleshooting
-
-### The script didn't update the SDDM config
-
-If the install script runs but the theme doesn't appear after reboot, set it manually:
-
-```bash
-sudo nano /etc/sddm.conf.d/theme.conf
-```
-
-Make sure the file contains exactly this (replace `forest` with your theme):
-
-```ini
-[Theme]
-Current=forest
-```
-
-Save and exit (**Ctrl+O → Enter**, then **Ctrl+X**), then test with the command from Part 5 before rebooting.
-
----
-
 ### CachyOS: Script says "SDDM is not installed" / Theme Never Appears
 
 > **This affects CachyOS systems that have been updated or factory-reset recently.**
@@ -245,6 +225,24 @@ Once the system is back up, you will be running classic SDDM. Open your terminal
 ```
 
 It will detect SDDM correctly this time. Install your theme, test it with `theme-test`, then reboot.
+---
+
+### The script didn't update the SDDM config (Optional)
+
+If the install script runs but the theme doesn't appear after reboot, set it manually:
+
+```bash
+sudo nano /etc/sddm.conf.d/theme.conf
+```
+
+Make sure the file contains exactly this (replace `forest` with your theme):
+
+```ini
+[Theme]
+Current=forest
+```
+
+Save and exit (**Ctrl+O → Enter**, then **Ctrl+X**), then test with the command from Part 5 before rebooting.
 
 ---
 
