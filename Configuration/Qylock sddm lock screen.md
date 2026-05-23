@@ -225,6 +225,7 @@ Once the system is back up, you will be running classic SDDM. Open your terminal
 ```
 
 It will detect SDDM correctly this time. Install your theme, test it with `theme-test`, then reboot.
+
 ---
 
 ### The script didn't update the SDDM config (Optional)
