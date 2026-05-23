@@ -146,7 +146,11 @@ Paste your abbreviations at the bottom of the file
     # Qylock SDDM Theme Management
     abbr -a theme "cd ~/Downloads/qylock && ./sddm.sh"
     abbr -a theme-test "sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/"
+If you clone repo in Home folder use thsi instead:
 
+    # Qylock SDDM Theme Management
+    abbr -a theme "cd ~/qylock && ./sddm.sh"
+    abbr -a theme-test "sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/"
 Save and exit, then reload your Fish shell to apply the changes:
 
     source ~/.config/fish/config.fish
