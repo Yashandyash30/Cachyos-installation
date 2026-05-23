@@ -136,20 +136,18 @@ sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/forest
 
 Append your custom shortcuts to your Fish configuration file so they load automatically.
 
-    Open your config file:
-    Bash
+Open your config file:
+
 
     nano ~/.config/fish/config.fish
 
-    Paste your abbreviations at the bottom of the file:
-    Code snippet
+Paste your abbreviations at the bottom of the file
 
     # Qylock SDDM Theme Management
     abbr -a theme "cd ~/Downloads/qylock && ./sddm.sh"
     abbr -a theme-test "sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/"
 
-    Save and exit, then reload your Fish shell to apply the changes:
-    Bash
+Save and exit, then reload your Fish shell to apply the changes:
 
     source ~/.config/fish/config.fish
 
@@ -157,11 +155,11 @@ Append your custom shortcuts to your Fish configuration file so they load automa
 
 Now you can use your newly created abbreviations to manage your cozy login screens natively in your terminal.
 
-    To install or configure a theme:
-    Type theme in your terminal. This will automatically navigate to the Qylock folder and execute the installation script.
+To install or configure a theme:
+    Type `theme` in your terminal. This will automatically navigate to the Qylock folder and execute the installation script.
 
-    To test a theme without logging out:
-    Type theme-test [ThemeName] (e.g., theme-test qylock-cozy). The --test-mode flag will open a window on your current desktop displaying exactly what the SDDM login screen will look like, saving you from having to reboot repeatedly while customizing.
+To test a theme without logging out:
+    Type `theme-test [ThemeName]` (e.g., `theme-test qylock-cozy`). The --test-mode flag will open a window on your current desktop displaying exactly what the SDDM login screen will look like, saving you from having to reboot repeatedly while customizing.
 
 ## Part 7 — Troubleshooting
 
