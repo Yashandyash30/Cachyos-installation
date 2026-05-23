@@ -54,7 +54,13 @@ cd ~/Downloads
 git clone https://github.com/Darkkal44/qylock.git
 cd qylock
 ```
+to clone in Home Folder
 
+```bash
+cd ~
+git clone https://github.com/Darkkal44/qylock.git
+cd qylock
+```
 ---
 
 ## Part 3 — Fonts (Optional)
