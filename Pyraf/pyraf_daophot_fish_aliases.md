@@ -18,6 +18,12 @@ nano ~/.config/fish/config.fish
 Scroll to the very bottom of the file and paste this entire block.
 
 * **The `xhost` line** ensures the container is allowed to draw legacy graphical windows (like DS9 or PyRAF plots) directly onto your Wayland desktop.
+first install it
+
+'''fish
+sudo pacman -S xorg-xhost
+'''
+
 * **The `bash -c` wrapper** around the DAOPHOT tools tricks the host's container engine into loading a 64-bit interpreter first, which then seamlessly executes the 32-bit Fortran binaries inside the container.
 
 ```fish
