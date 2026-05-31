@@ -223,6 +223,37 @@ To ensure the client stops using the old cached password, unmount any active net
 sudo umount -a -t cifs
 sudo systemctl daemon-reload
 
+Here is the new section. You can copy and paste this directly to the bottom of your master guide!
+
+---
+
+### Part 5: How to Access Files While Using Cloudflare WARP
+
+If you are using Cloudflare WARP (or similar VPNs), it will aggressively intercept your local network traffic and try to route it through its own servers. This instantly breaks your connection to your KSMBD shared drives.
+
+You must configure a "Split Tunnel" to tell WARP to ignore your local home network.
+
+**1. Find Your Local Subnet**
+First, determine the IP range of your local network. You can find this by running `ip a` and looking at your active Wi-Fi or Ethernet connection (look for a line like `inet 172.21.1.129/22` or `192.168.1.X/24`). The subnet is the base IP with the slash (e.g., `172.21.0.0/22`).
+
+**2. Add the Bypass Route**
+Run the following command to add your local network to WARP's exclusion list. *(Replace the IP range with your specific subnet if it is different).*
+
+```bash
+warp-cli tunnel ip add-range 172.21.0.0/22
+
+```
+
+**3. Restart the Connection**
+The new routing rules will not take effect until the tunnel is rebooted. Run these commands to bounce the connection:
+
+```bash
+warp-cli disconnect
+warp-cli connect
+
+```
+
+You can now keep Cloudflare WARP running 24/7 for privacy, and still click-to-mount your network drives in Dolphin without any interference!
 ```
 
 Click the folder in Dolphin to reconnect with your new password!
