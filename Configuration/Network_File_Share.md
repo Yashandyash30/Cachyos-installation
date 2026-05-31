@@ -1,4 +1,10 @@
-This is the updated master guide for your bidirectional, high-speed `ksmbd` setup on CachyOS using UFW. You can save this reference for whenever you need to rebuild your system, add a new drive, or troubleshoot a connection.
+Here is the finalized, updated master guide. It includes the security ownership fix and the exact `fstab` flags needed for seamless, error-free mounting in Dolphin.
+
+---
+
+### The Master Guide: High-Speed KSMBD File Sharing on CachyOS
+
+This is the complete reference for setting up bidirectional file sharing using `ksmbd` and UFW. Save this for whenever you need to rebuild your system, add a new drive, or troubleshoot a connection.
 
 ---
 
@@ -7,20 +13,21 @@ This is the updated master guide for your bidirectional, high-speed `ksmbd` setu
 Before a machine can share or access files, it needs the required packages.
 
 1. **For the Server (Sharing files):**
-
 ```bash
 paru -S ksmbd-tools
 sudo mkdir -p /etc/ksmbd
 
 ```
 
-2. **For the Client (Accessing files):**
 
+2. **For the Client (Accessing files):**
 ```bash
 sudo pacman -S cifs-utils
 sudo mkdir -p /etc/samba
 
 ```
+
+
 
 ---
 
@@ -102,14 +109,16 @@ password=YOUR_KSMBD_PASSWORD
 
 ```
 
-Lock it down:
+**2. Lock Down & Assign Ownership**
+Secure the file so others can't read it, but ensure *your* user account has permission to read it when you click the drive in Dolphin:
 
 ```bash
 sudo chmod 600 /etc/samba/credentials
+sudo chown $USER:$USER /etc/samba/credentials
 
 ```
 
-**2. Create the Mount Point**
+**3. Create the Mount Point**
 Create an empty folder where the remote files will appear:
 
 ```bash
@@ -117,7 +126,7 @@ sudo mkdir -p /mnt/Remote_Folder
 
 ```
 
-**3. Edit the fstab**
+**4. Edit the fstab**
 Open the file systems table:
 
 ```bash
@@ -127,14 +136,14 @@ sudo nano /etc/fstab
 
 Add the manual mount line (replace `IP_ADDRESS` and `ShareName`).
 
-> **Important Note on Mount Options:** We use `noauto,nofail,_netdev` instead of automount options. This removes the automount tripwire, ensuring `systemd` completely ignores the drive during boot and background tasks. It prevents system hangs and socket errors when the server is offline.
+> **Important Note on Mount Options:** We use `users,noauto,nofail,_netdev` to ensure the drive only connects when you click it. The `users` flag allows your standard user account to mount it without needing `sudo`, and `noauto` prevents systemd from trying to connect in the background (which causes boot hangs when the server is offline).
 
 ```text
-//IP_ADDRESS/ShareName  /mnt/Remote_Folder  cifs  credentials=/etc/samba/credentials,uid=1000,gid=1000,vers=3.1.1,noauto,nofail,_netdev  0  0
+//IP_ADDRESS/ShareName  /mnt/Remote_Folder  cifs  credentials=/etc/samba/credentials,uid=1000,gid=1000,vers=3.1.1,users,noauto,nofail,_netdev  0  0
 
 ```
 
-**4. Activate the Mount**
+**5. Activate the Mount**
 Reload system daemons to recognize the new fstab entry:
 
 ```bash
@@ -143,7 +152,7 @@ sudo systemctl restart local-fs.target
 
 ```
 
-*The folder will now remain completely dormant. It will only attempt to connect to the server when you actively double-click the drive in Dolphin.*
+*The folder will now remain completely dormant during boot. It will instantly connect to the server only when you actively double-click the drive in Dolphin.*
 
 ---
 
@@ -155,7 +164,6 @@ Whenever you want to add a completely new folder to your network, it is a simple
 
 1. Open `/etc/ksmbd/ksmbd.conf`.
 2. Add a new block at the bottom:
-
 ```ini
 [NewDrive]
     path = /mnt/NewDrive
@@ -167,13 +175,14 @@ Whenever you want to add a completely new folder to your network, it is a simple
 
 ```
 
+
 3. Restart the service: `sudo systemctl restart ksmbd.service`
 
 **Step 2: On the Client (The machine accessing the files)**
 
 1. Create a new mount point: `sudo mkdir -p /mnt/NewDrive_Remote`
-2. Open `/etc/fstab` and add a new line pointing to `//IP_ADDRESS/NewDrive` (using the same `noauto,nofail,_netdev` flags).
-3. Reload systemd: `sudo systemctl daemon-reload` and restart the `local-fs.target`.
+2. Open `/etc/fstab` and add a new line pointing to `//IP_ADDRESS/NewDrive` (remember to use the exact same `users,noauto,nofail,_netdev` flags).
+3. Reload systemd: `sudo systemctl daemon-reload` and restart `local-fs.target`.
 
 ---
 
@@ -200,16 +209,20 @@ sudo systemctl restart ksmbd.service
 Open the hidden credentials file:
 
 ```bash
-sudo nano /etc/samba/credentials
+nano /etc/samba/credentials
 
 ```
 
+*(Note: Since you took ownership of this file, you no longer need `sudo` to edit it).*
+
 Delete the old password, type the new one, and save the file.
 
-To ensure the client stops using the old cached password, unmount any active network drives, reload the daemon, and click the folder in Dolphin to reconnect with the new password:
+To ensure the client stops using the old cached password, unmount any active network drives and reload the daemon:
 
 ```bash
 sudo umount -a -t cifs
 sudo systemctl daemon-reload
 
 ```
+
+Click the folder in Dolphin to reconnect with your new password!
