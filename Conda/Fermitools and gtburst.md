@@ -1,9 +1,3 @@
-Viewed LAT_Analysis_GRB250919A.py:1-45
-
-Here is the updated guide. I have added **Step 2: Install ThreeML, Fermipy, and Jupyter Support** to pull in the tools required for likelihood analysis and notebook integration, and **Step 4: Using Jupyter Notebooks** to ensure the environment variables load correctly.
-
-***
-
 # Fermitools & GTBurst Installation Guide (Arch/CachyOS)
 
 > GTBurst is bundled directly inside the Fermitools package. Installing Fermitools gives you GTBurst automatically — no separate repository needed.
@@ -16,21 +10,23 @@ Conda's `activate` mechanism relies on bash hooks and is unreliable under Fish. 
 
 ```bash
 bash
+
 ```
 
 > All steps below must be run inside a bash session.
 
 ---
 
-## Step 1: Install Fermitools
+## Step 1: The "Bulletproof" Environment Creation
 
-Create a new dedicated conda environment called `fermi`. Locking to Python 3.9 ensures the correct older GUI dependencies are pulled in automatically.
+Create a new dedicated conda environment called `fermi`. By locking Python to 3.9 and pinning older versions of `numpy` and `astropy`, we prevent the modern Python ecosystem from breaking the older GTBurst scripts.
 
 ```bash
 mamba create -n fermi \
   -c conda-forge \
   -c fermi \
-  fermitools=2.2.0 python=3.9
+  fermitools=2.2.0 python=3.9 "numpy<1.24" "astropy<6.0" aplpy
+
 ```
 
 ---
@@ -44,6 +40,7 @@ mamba install -n fermi \
   -c conda-forge \
   -c threeml \
   threeml fermipy jupyter ipykernel
+
 ```
 
 ---
@@ -52,32 +49,92 @@ mamba install -n fermi \
 
 ```bash
 mamba activate fermi
+
 ```
 
 ---
 
-## Step 4: Using Jupyter Notebooks (For ThreeML/Fermipy)
+## Step 4: The Master Pre-Flight Patch Script
+
+Even with pinned packages, there are a few hardcoded bugs in the Fermitools installation (like missing executable permissions and outdated `aplpy` plotting syntax) that must be fixed.
+
+With your `fermi` environment activated, copy and paste this entire block into your terminal to automatically patch the software:
+
+```bash
+# 1. Fix the permissions bug for all multiprocessing scripts
+chmod +x $CONDA_PREFIX/lib/python3.9/site-packages/fermitools/GtBurst/gtapps_mp/*.py
+
+# 2. Fix the Numpy float deprecation in Likelihood analysis
+sed -i 's/num.float/float/g' $CONDA_PREFIX/lib/python3.9/site-packages/fermitools/UnbinnedAnalysis.py
+
+# 3. Fix the Aplpy plotting deprecations in the interactive display
+sed -i 's/set_tick_labels_font/tick_labels.set_font/g' $CONDA_PREFIX/lib/python3.9/site-packages/fermitools/GtBurst/commands/gtdolike.py
+sed -i 's/set_axis_labels_font/axis_labels.set_font/g' $CONDA_PREFIX/lib/python3.9/site-packages/fermitools/GtBurst/commands/gtdolike.py
+sed -i 's/show_grid/add_grid/g' $CONDA_PREFIX/lib/python3.9/site-packages/fermitools/GtBurst/commands/gtdolike.py
+
+```
+
+---
+
+## Step 5: Set Up Persistent Logging Aliases
+
+GTBurst outputs critical Likelihood fitting data directly into the terminal. To ensure you never lose this data, add timestamped logging aliases to your system.
+
+1. Open your bash configuration file:
+```bash
+nano ~/.bashrc
+
+```
+
+
+2. Paste these at the bottom of the file:
+```bash
+# Fermi gtburst logging aliases
+alias gtburst-log='gtburst 2>&1 | tee "gtburst_$(date +%Y%m%d_%H%M%S).log"'
+alias gtburst-quiet='gtburst > "gtburst_$(date +%Y%m%d_%H%M%S).log" 2>&1'
+
+```
+
+
+3. Save, exit, and apply:
+```bash
+source ~/.bashrc
+
+```
+
+
+
+---
+
+## Step 6: Using Jupyter Notebooks (For ThreeML/Fermipy)
 
 When using Jupyter Notebooks to run `ThreeML` or `TransientLATDataBuilder`, **you must launch Jupyter from inside the activated `fermi` environment.** Fermitools relies on environment variables (like `$FERMI_DIR` and `$CALDB`) that are only set when the conda environment is explicitly activated in your terminal.
 
 1. First, register the kernel so Jupyter recognizes it:
-   ```bash
-   python -m ipykernel install --user --name fermi --display-name "Python (fermi)"
-   ```
+```bash
+python -m ipykernel install --user --name fermi --display-name "Python (fermi)"
+
+```
+
+
 2. Launch Jupyter Lab or Notebook directly from the activated bash session:
-   ```bash
-   jupyter lab
-   ```
+```bash
+jupyter lab
+
+```
+
+
 3. Inside Jupyter, ensure your notebook's kernel is set to **`Python (fermi)`**.
 
 ---
 
-## Step 5: Launch GTBurst
+## Step 7: Launch GTBurst
 
-To use the interactive GUI:
+To use the interactive GUI, use your new logging alias instead of the standard command:
 
 ```bash
-gtburst
+gtburst-log
+
 ```
 
 > GTBurst will load as **pyBurstAnalysisGUI v. 03-00-00p5**, ready for LAT/GBM data download, unbinned likelihood analyses, and `.pha` file generation for ThreeML.
@@ -89,17 +146,39 @@ gtburst
 On CachyOS with KDE Plasma, if the GTBurst window looks glitchy or refuses to open, force it through XWayland:
 
 ```bash
-QT_QPA_PLATFORM=xcb gtburst
+QT_QPA_PLATFORM=xcb gtburst-log
+
 ```
 
 > If GTBurst opens smoothly on first launch, this step is not needed.
 
 ---
 
+## Known Issues & Operational Best Practices
+
+### 1. "File __temp_ft1.fits does not exist!" in GTBurst GUI
+
+If you attempt to use the built-in LAT data downloader in the GTBurst GUI, it may fail silently and throw an `OSError` during the extraction phase.
+
+**Why this happens:** The NASA Fermi FSSC data servers have updated their HTTPS security and URL structures. The older downloader built into the GTBurst GUI cannot follow these redirects properly, resulting in it downloading an empty or corrupted file.
+
+**How to fix it:** Do not use the GTBurst GUI's "Download Data" button. Instead, either:
+
+* **Use `threeML` in Python to download the data** (its downloader is modernized and works perfectly).
+* **Download manually** via the [Fermi FSSC Data Server](https://fermi.gsfc.nasa.gov/cgi-bin/ssc/LAT/LATDataQuery.cgi).
+
+Once you have the `FT1` and `FT2` files on your disk, open the GTBurst GUI and select **"Load User Data"** instead of trying to download it through the interface.
+
+### 2. Ignoring "FITSFixedWarning"
+
+During likelihood analysis or plotting, you may see a wall of text in the terminal warning that `'datfix' made the change 'Invalid DATE-OBS format'`. **This is not an error.** The standard Fermi data pipeline leaves these date fields blank in favor of MJD format; Astropy is simply fixing the metadata formatting for you in the background.
+
+---
+
 ## Maintenance Tips
 
 | Scenario | Action |
-|---|---|
+| --- | --- |
 | **Update Fermitools** | `mamba update fermitools -c conda-forge -c fermi` |
 | **Broken environment** | Run `mamba env remove -n fermi` and repeat the installation steps |
 | **GTBurst GUI issues** | Always try `QT_QPA_PLATFORM=xcb gtburst` first before debugging further |
@@ -110,68 +189,3 @@ QT_QPA_PLATFORM=xcb gtburst
 ## Why This Setup Is Safe on a Rolling Release
 
 Fermitools is installed via conda-forge and the official Fermi channel. Like HEASoft, the environment bundles its own runtime libraries — `pacman -Syu` updating system GLIBC does not affect this environment.
-
-Ran command: `conda run -n fermi gtselect`
-Ran command: `conda run -n fermi python -c "from GtBurst.dataHandling import download_LAT_data; download_LAT_data(277.480, 61.790, 12.0, 608375325.707, 608375325.707+100, time_type='MET', data_type='Extended', destination_directory='.')"`
-Ran command: `cat << 'EOF' > test_download.py
-from threeML.utils.data_download.Fermi_LAT.download_LAT_data import LAT_dataset
-from GtBurst.TriggerSelector import TriggerSelector
-
-def find_met(grb_name):
-    a = TriggerSelector()
-    a.downloadList()
-    for x in a.data:
-        if x[0] == f"bn{grb_name}" or x[0] == grb_name or grb_name in x[0]:
-            return float(x[1])
-    return None
-
-met = find_met("200412381")
-print(f"MET: {met}")
-
-lat_data = LAT_dataset()
-try:
-    lat_data.make_LAT_dataset(
-        ra=277.480,
-        dec=61.790,
-        radius=12.0,
-        trigger_time=met,
-        tstart=-1000,
-        tstop=1000,
-        data_type="Extended",
-        destination_directory=".",
-        Emin=100.0,
-        Emax=300000.0
-    )
-except Exception as e:
-    import traceback
-    traceback.print_exc()
-EOF
-conda run -n fermi python test_download.py`
-Ran command: `cat /home/void/.gemini/antigravity-ide/brain/d90bf6e0-747f-4751-9fb3-dda492b90015/.system_generated/tasks/task-207.log`
-Used tool: manage_task
-Ran command: `ls -l *.fit *.rsp`
-Ran command: `find . -name "*.fit"`
-
-That is a brilliant observation, and it reveals a really fascinating overlap. You actually hit **two completely different bugs** that produce the exact same error (`OSError: File __temp_ft1.fits does not exist!`), which is why it was so confusing. 
-
-Here is exactly what was happening:
-
-1. **In Jupyter Notebook (The Environment Bug)**: `threeML` successfully downloaded the data, but when it handed the files to `gtselect` to extract the events, `gtselect` crashed because Jupyter didn't load your `FERMI_DIR` or `CALDB` environment variables. No `__temp_ft1.fits` was produced. (My previous kernel fix resolved this).
-2. **In the GTBurst GUI (The Downloader Bug)**: The terminal environment was perfect. However, `GTBurst` is an older piece of software. The NASA Fermi FSSC server recently changed its HTTPS redirects and query structures. When you click "Download data" in the GTBurst GUI, its outdated built-in downloader silently fails and downloads a corrupted/HTML error file instead of the actual data. When `gtselect` tries to read this bad file, it crashes, and again, no `__temp_ft1.fits` is produced!
-
-Because `threeML` has a modernized, robust data downloader built-in, using the Python notebook actually bypasses the GUI's broken downloader!
-
-***
-
-## Known Issue: "File __temp_ft1.fits does not exist!" in GTBurst GUI
-
-If you attempt to use the built-in LAT data downloader in the GTBurst GUI, it may fail silently and throw an `OSError: File __temp_ft1.fits does not exist!` during the extraction phase.
-
-**Why this happens:**
-The NASA Fermi FSSC data servers have updated their HTTPS security and URL structures. The older downloader built into the GTBurst GUI cannot follow these redirects properly, resulting in it downloading an empty or corrupted file. When `gtselect` attempts to process this empty file, it crashes and fails to generate the required temporary files.
-
-**How to fix it:**
-Do not use the GTBurst GUI's "Download Data" button. Instead, either:
-1. **Use `threeML` in Python to download the data** (its downloader is modernized and works perfectly).
-2. **Download manually** via the [Fermi FSSC Data Server](https://fermi.gsfc.nasa.gov/cgi-bin/ssc/LAT/LATDataQuery.cgi). 
-Once you have the `FT1` and `FT2` files on your disk, open the GTBurst GUI and select **"Load User Data"** instead of trying to download it through the interface.
