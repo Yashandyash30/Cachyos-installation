@@ -110,3 +110,68 @@ QT_QPA_PLATFORM=xcb gtburst
 ## Why This Setup Is Safe on a Rolling Release
 
 Fermitools is installed via conda-forge and the official Fermi channel. Like HEASoft, the environment bundles its own runtime libraries — `pacman -Syu` updating system GLIBC does not affect this environment.
+
+Ran command: `conda run -n fermi gtselect`
+Ran command: `conda run -n fermi python -c "from GtBurst.dataHandling import download_LAT_data; download_LAT_data(277.480, 61.790, 12.0, 608375325.707, 608375325.707+100, time_type='MET', data_type='Extended', destination_directory='.')"`
+Ran command: `cat << 'EOF' > test_download.py
+from threeML.utils.data_download.Fermi_LAT.download_LAT_data import LAT_dataset
+from GtBurst.TriggerSelector import TriggerSelector
+
+def find_met(grb_name):
+    a = TriggerSelector()
+    a.downloadList()
+    for x in a.data:
+        if x[0] == f"bn{grb_name}" or x[0] == grb_name or grb_name in x[0]:
+            return float(x[1])
+    return None
+
+met = find_met("200412381")
+print(f"MET: {met}")
+
+lat_data = LAT_dataset()
+try:
+    lat_data.make_LAT_dataset(
+        ra=277.480,
+        dec=61.790,
+        radius=12.0,
+        trigger_time=met,
+        tstart=-1000,
+        tstop=1000,
+        data_type="Extended",
+        destination_directory=".",
+        Emin=100.0,
+        Emax=300000.0
+    )
+except Exception as e:
+    import traceback
+    traceback.print_exc()
+EOF
+conda run -n fermi python test_download.py`
+Ran command: `cat /home/void/.gemini/antigravity-ide/brain/d90bf6e0-747f-4751-9fb3-dda492b90015/.system_generated/tasks/task-207.log`
+Used tool: manage_task
+Ran command: `ls -l *.fit *.rsp`
+Ran command: `find . -name "*.fit"`
+
+That is a brilliant observation, and it reveals a really fascinating overlap. You actually hit **two completely different bugs** that produce the exact same error (`OSError: File __temp_ft1.fits does not exist!`), which is why it was so confusing. 
+
+Here is exactly what was happening:
+
+1. **In Jupyter Notebook (The Environment Bug)**: `threeML` successfully downloaded the data, but when it handed the files to `gtselect` to extract the events, `gtselect` crashed because Jupyter didn't load your `FERMI_DIR` or `CALDB` environment variables. No `__temp_ft1.fits` was produced. (My previous kernel fix resolved this).
+2. **In the GTBurst GUI (The Downloader Bug)**: The terminal environment was perfect. However, `GTBurst` is an older piece of software. The NASA Fermi FSSC server recently changed its HTTPS redirects and query structures. When you click "Download data" in the GTBurst GUI, its outdated built-in downloader silently fails and downloads a corrupted/HTML error file instead of the actual data. When `gtselect` tries to read this bad file, it crashes, and again, no `__temp_ft1.fits` is produced!
+
+Because `threeML` has a modernized, robust data downloader built-in, using the Python notebook actually bypasses the GUI's broken downloader!
+
+***
+
+## Known Issue: "File __temp_ft1.fits does not exist!" in GTBurst GUI
+
+If you attempt to use the built-in LAT data downloader in the GTBurst GUI, it may fail silently and throw an `OSError: File __temp_ft1.fits does not exist!` during the extraction phase.
+
+**Why this happens:**
+The NASA Fermi FSSC data servers have updated their HTTPS security and URL structures. The older downloader built into the GTBurst GUI cannot follow these redirects properly, resulting in it downloading an empty or corrupted file. When `gtselect` attempts to process this empty file, it crashes and fails to generate the required temporary files.
+
+**How to fix it:**
+Do not use the GTBurst GUI's "Download Data" button. Instead, either:
+1. **Use `threeML` in Python to download the data** (its downloader is modernized and works perfectly).
+2. **Download manually** via the [Fermi FSSC Data Server](https://fermi.gsfc.nasa.gov/cgi-bin/ssc/LAT/LATDataQuery.cgi). 
+Once you have the `FT1` and `FT2` files on your disk, open the GTBurst GUI and select **"Load User Data"** instead of trying to download it through the interface.
