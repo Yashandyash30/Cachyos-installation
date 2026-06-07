@@ -1,3 +1,9 @@
+Viewed LAT_Analysis_GRB250919A.py:1-45
+
+Here is the updated guide. I have added **Step 2: Install ThreeML, Fermipy, and Jupyter Support** to pull in the tools required for likelihood analysis and notebook integration, and **Step 4: Using Jupyter Notebooks** to ensure the environment variables load correctly.
+
+***
+
 # Fermitools & GTBurst Installation Guide (Arch/CachyOS)
 
 > GTBurst is bundled directly inside the Fermitools package. Installing Fermitools gives you GTBurst automatically — no separate repository needed.
@@ -29,7 +35,20 @@ mamba create -n fermi \
 
 ---
 
-## Step 2: Activate the Environment
+## Step 2: Install ThreeML, Fermipy, and Jupyter Support
+
+To perform advanced likelihood fitting (like Bayesian blocks for prompt/extended GRB phases), you need to install 3ML and Fermipy into this same environment so they can utilize the `fermitools` underlying structure. We also install `jupyter` and `ipykernel`.
+
+```bash
+mamba install -n fermi \
+  -c conda-forge \
+  -c threeml \
+  threeml fermipy jupyter ipykernel
+```
+
+---
+
+## Step 3: Activate the Environment
 
 ```bash
 mamba activate fermi
@@ -37,7 +56,25 @@ mamba activate fermi
 
 ---
 
-## Step 3: Launch GTBurst
+## Step 4: Using Jupyter Notebooks (For ThreeML/Fermipy)
+
+When using Jupyter Notebooks to run `ThreeML` or `TransientLATDataBuilder`, **you must launch Jupyter from inside the activated `fermi` environment.** Fermitools relies on environment variables (like `$FERMI_DIR` and `$CALDB`) that are only set when the conda environment is explicitly activated in your terminal.
+
+1. First, register the kernel so Jupyter recognizes it:
+   ```bash
+   python -m ipykernel install --user --name fermi --display-name "Python (fermi)"
+   ```
+2. Launch Jupyter Lab or Notebook directly from the activated bash session:
+   ```bash
+   jupyter lab
+   ```
+3. Inside Jupyter, ensure your notebook's kernel is set to **`Python (fermi)`**.
+
+---
+
+## Step 5: Launch GTBurst
+
+To use the interactive GUI:
 
 ```bash
 gtburst
@@ -64,8 +101,9 @@ QT_QPA_PLATFORM=xcb gtburst
 | Scenario | Action |
 |---|---|
 | **Update Fermitools** | `mamba update fermitools -c conda-forge -c fermi` |
-| **Broken environment** | Run `mamba env remove -n fermi` and repeat Steps 1–2 |
+| **Broken environment** | Run `mamba env remove -n fermi` and repeat the installation steps |
 | **GTBurst GUI issues** | Always try `QT_QPA_PLATFORM=xcb gtburst` first before debugging further |
+| **CALDB/Alias Missing Error** | This means your `FERMI_DIR` variables aren't set. Ensure you ran `mamba activate fermi` before launching Python/Jupyter. |
 
 ---
 
