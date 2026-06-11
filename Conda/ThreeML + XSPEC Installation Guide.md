@@ -179,6 +179,34 @@ python your_script.py       # or open VS Code and select the kernel
 
 ---
 
+If you ever need to install `pynchrotron` in a new Conda environment in the future, you can follow these simple steps.
+
+Since `pynchrotron` is not available on standard package managers like PyPI or Conda-forge, you have to install it directly from the author's GitHub repository.
+
+### Step-by-Step Guide:
+
+**1. Activate your target environment**
+First, open your terminal and activate the Conda environment where you want to install it (for example, `threeML`):
+```bash
+conda activate threeML
+```
+
+**2. Ensure `pip` is installed inside the environment**
+Sometimes Conda environments don't have `pip` installed by default. To make sure you don't accidentally install it into your global system, install `pip` directly into the active environment:
+```bash
+conda install pip -y
+```
+
+**3. Install `pynchrotron` directly from GitHub**
+Now, use your environment's `pip` to download and install the package from its source code repository:
+```bash
+python -m pip install git+https://github.com/grburgess/pynchrotron.git
+```
+
+*(Note: We use `python -m pip` instead of just `pip` as a best practice to guarantee that the installation goes exactly into the python version of your currently activated environment.)*
+
+That's it! After running those commands, you can open Jupyter and `import pynchrotron` just like normal.
+
 ## Appendix: Distrobox Bridge Kernel for VS Code
 
 > Only needed if you want to run ThreeML inside a Distrobox container while using VS Code on the host. Not required for terminal-based analysis.
