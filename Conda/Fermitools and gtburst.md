@@ -191,6 +191,8 @@ During likelihood analysis or plotting, you may see a wall of text in the termin
 Fermitools is installed via conda-forge and the official Fermi channel. Like HEASoft, the environment bundles its own runtime libraries — `pacman -Syu` updating system GLIBC does not affect this environment.
 
 ```bash
+conda activate fermi
+
 pip install astro-gdt astro-gdt-fermi
 ```
 *(These are the modern, official Fermi GBM Data Tools supported by the GBM team).*
