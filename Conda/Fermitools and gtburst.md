@@ -190,46 +190,6 @@ During likelihood analysis or plotting, you may see a wall of text in the termin
 
 Fermitools is installed via conda-forge and the official Fermi channel. Like HEASoft, the environment bundles its own runtime libraries — `pacman -Syu` updating system GLIBC does not affect this environment.
 
-Viewed plot_panels.py:111-138
-Ran command: `conda run -n fermi python -c "
-import gdt.missions.fermi.gbm.tte as tte
-from gdt.core.binning.unbinned import bin_by_time
-from gdt.core.background.fitter import BackgroundFitter
-from gdt.core.background.binned import Polynomial
-
-n6 = tte.GbmTte.open('glg_tte_n6_bn200412381_v00.fit.gz')
-phaii = n6.to_phaii(bin_by_time, 1.0)
-bkgd = BackgroundFitter.from_phaii(phaii, Polynomial, time_ranges=[(-10.0, -2.0), (20.0, 30.0)])
-bkgd.fit(order=1)
-bkg_phaii = bkgd.interpolate_bins(phaii.data.tstart, phaii.data.tstop)
-
-lc_data = phaii.to_lightcurve(energy_range=(8.0, 50.0))
-lc_bkg = bkg_phaii.integrate_energy(8.0, 50.0)
-print('Data counts shape:', lc_data.counts.shape)
-print('Bkg counts shape:', lc_bkg.counts.shape)
-print('Bkg object type:', type(lc_bkg))
-print('Data time centroids:', lc_data.centroids[:3])
-"`
-Ran command: `echo 'Waiting for task-246'`
-Edited plot_panels.py
-Ran command: `conda run -n fermi python plot_panels.py`
-Ran command: `echo 'Waiting for task-256'`
-Ran command: `conda run -n fermi python -c "
-import gdt.missions.fermi.gbm.tte as tte
-from gdt.core.binning.unbinned import bin_by_time
-
-n6 = tte.GbmTte.open('glg_tte_n6_bn200412381_v00.fit.gz')
-phaii = n6.to_phaii(bin_by_time, 1.0)
-lc = phaii.to_lightcurve(energy_range=(8.0, 50.0))
-print(dir(lc))
-"`
-Ran command: `echo 'Waiting for task-263'`
-Edited plot_panels.py
-Ran command: `conda run -n fermi python plot_panels.py`
-Ran command: `echo 'Waiting for task-273'`
-
-
-
 ```bash
 pip install astro-gdt astro-gdt-fermi
 ```
