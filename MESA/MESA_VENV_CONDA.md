@@ -9,7 +9,7 @@ Here are the exact steps to get everything running seamlessly:
 Run this command to create a new environment (named `mesa_env`) and install Python, `ipykernel`, and the standard data analysis stack from `conda-forge`:
 
 ```bash
-mamba create -n mesa_env -c conda-forge python=3.11 ipykernel numpy matplotlib pandas scipy
+mamba create -n mesa_env -c conda-forge python=3.11 ipykernel numpy matplotlib pandas scipy pillow
 
 ```
 
