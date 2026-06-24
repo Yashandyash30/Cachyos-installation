@@ -254,6 +254,117 @@ warp-cli connect
 ```
 
 You can now keep Cloudflare WARP running 24/7 for privacy, and still click-to-mount your network drives in Dolphin without any interference!
-```
+
 
 Click the folder in Dolphin to reconnect with your new password!
+
+---
+
+### Part 6: How to Use Hostnames Instead of IP Addresses (For Laptops & Wi-Fi)
+
+If you are sharing files with a machine that frequently switches between Wi-Fi and Ethernet (like a laptop), its IP address will constantly change, breaking your `/etc/fstab` mount. You can fix this by telling the network to look for the machine's name (`.local`) instead of its IP.
+
+**Important Prerequisite: Unique Hostnames**
+For this to work, every machine on your network **must** have a unique name. If both your PC and laptop share the exact same hostname (e.g., both are named `void`), the network will collide and fail to connect.
+
+To give a machine a unique name, run this command (replace `new-name` with something like `void-pc` or `void-laptop`), and then reboot the system:
+
+```bash
+sudo hostnamectl set-hostname new-name
+
+```
+
+**Step 1: Find the Target Machine's Name**
+On the machine that *owns* the files (the Server), open a terminal and check its current name:
+
+```bash
+hostname
+
+```
+
+*(Take note of this exact output).*
+
+**Step 2: Update the fstab File**
+On the machine trying to *access* the files (the Client), open your file systems table:
+
+```bash
+sudo nano /etc/fstab
+
+```
+
+Find your manual mount line. Replace the IP address with the Server's hostname, and attach `.local` directly to the end of it. Keep the rest of your flags exactly the same.
+
+It should look like this (replace `TargetHostname` and `ShareName`):
+
+```text
+//TargetHostname.local/ShareName  /mnt/Remote_Folder  cifs  credentials=/etc/samba/credentials,uid=1000,gid=1000,vers=3.1.1,users,noauto,nofail,_netdev  0  0
+
+```
+
+**Step 3: Reload System Daemons**
+Flush the old IP configuration and apply the new hostname tracking:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart local-fs.target
+
+```
+
+*Your mount point will now dynamically track the target machine across your local network, connecting instantly whether it is plugged into a router or running on Wi-Fi!*
+
+
+
+### Part 7: Troubleshooting - How to Remove Duplicate Network Drives in Dolphin
+
+Sometimes you might open Dolphin and see two identical network drives for the exact same folder. This happens for two completely different reasons: either a "ghost" of an old connection is stuck in the system, or Dolphin is double-reporting the drive.
+
+Here is how to fix both.
+
+**Scenario A: "Ghost" Duplicates (After changing an IP or Hostname)**
+When you change the address in `/etc/fstab`, Linux's background service (`systemd`) generates a new mount profile, but the system often holds onto the old connection simultaneously.
+
+To flush out the ghost entries and cleanly reset the connection:
+
+1. Unmount all active and ghost network drives:
+
+```bash
+sudo umount -a -t cifs
+
+
+```
+
+*(Note: Ensure you do not have Dolphin open to a network folder when you run this, or it will say "target is busy").*
+
+2. Reload systemd so it forgets the old configuration:
+
+```bash
+sudo systemctl daemon-reload
+
+
+```
+
+3. Restart the local filesystem target:
+
+```bash
+sudo systemctl restart local-fs.target
+
+
+```
+
+Close and reopen Dolphin. The ghost entry should be gone.
+
+**Scenario B: "Discovery" Duplicates (Fstab + Network Scan)**
+If you still see two folders, it is because Dolphin is showing your manual `/etc/fstab` mount **AND** automatically discovering your `ksmbd` server over the local network via standard scanning protocols (like mDNS).
+
+You have two options to clean this up visually:
+
+* **The Easy UI Way:** Simply right-click the duplicate you do not want to use in Dolphin's sidebar and select **"Hide"**.
+* **The Fstab Way:** You can tell your file manager to ignore the `fstab` entry by adding `x-gvfs-hide` to your mount options. Your fstab line would look like this:
+
+```text
+//TargetHostname.local/ShareName  /mnt/Remote_Folder  cifs  credentials=/etc/samba/credentials,uid=1000,gid=1000,vers=3.1.1,users,noauto,nofail,_netdev,x-gvfs-hide  0  0
+
+
+```
+
+*(Remember to run `sudo systemctl daemon-reload` and restart `local-fs.target` if you edit the fstab file).*
