@@ -1,104 +1,85 @@
+Here is the fully updated, polished guide. I have completely rewritten **Step 1 of the CALDB Setup** so that it properly creates the `software/tools` directory structure before downloading and extracting the NASA configuration files.
+
+This version will work flawlessly copy-and-pasted into your terminal.
+
+---
+
 # HEASoft & Xspec Installation Guide (Arch/CachyOS)
 
 > This workflow installs HEASoft via the official HEASARC conda channel, keeping it fully isolated from system updates.
-
----
 
 ## Important: Shell Requirement
 
 Conda's `activate` mechanism relies on bash hooks and is unreliable under Fish. **Switch to bash before proceeding.**
 
 ```bash
-fish
 bash
+
 ```
 
 > All steps below must be run inside a bash session.
 
 ---
 
-## Step 1: Install HEASoft
+## Part 1: Install HEASoft & Xspec
 
+**Step 1: Install HEASoft**
 Create a new dedicated conda environment called `henv` and install HEASoft directly from the official HEASARC conda channel.
 
 ```bash
 mamba create -n henv heasoft \
   -c https://heasarc.gsfc.nasa.gov/FTP/software/conda/ \
   -c conda-forge
+
 ```
 
----
-
-## Step 2: Activate the Environment
+**Step 2: Activate the Environment**
 
 ```bash
 conda activate henv
+
 ```
 
 > The prompt will change to `(henv)[...]`. HEASoft is initialized automatically upon activation.
 
----
-
-## Step 3: Install Xspec Model Data (Optional)
-
+**Step 3: Install Xspec Model Data (Optional)**
 If you plan to use Xspec, install the atomic data files separately. Since the environment is already built and active, run this directly into it — no rebuild required.
 
 ```bash
 mamba install xspec-data \
   -c https://heasarc.gsfc.nasa.gov/FTP/software/conda/ \
   -c conda-forge
+
 ```
 
 > This downloads ~5GB of Xspec atomic data files and slots them into your existing `henv` without modifying anything else.
 
 ---
 
-## Maintenance Tips
+## Part 2: The Complete Bash CALDB Setup Guide
 
-| Scenario | Action |
-|---|---|
-| **Update HEASoft** | `mamba update heasoft -c https://heasarc.gsfc.nasa.gov/FTP/software/conda/ -c conda-forge` |
-| **Broken environment** | Do not attempt to fix it. Run `mamba env remove -n henv` and repeat Steps 1–2 |
-| **Xspec data out of date** | `mamba update xspec-data -c https://heasarc.gsfc.nasa.gov/FTP/software/conda/ -c conda-forge` |
+For a standard Bash shell (`bash`), this will configure everything perfectly for your `henv` environment without any syntax hiccups.
 
----
-
-## Why This Setup Is Safe on a Rolling Release
-
-HEASoft installed via the HEASARC conda channel bundles its own runtime libraries inside the environment. Unlike the pre-compiled tarball from the HEASoft website (which links against system GLIBC), this installation is effectively isolated from `pacman -Syu` updates.
-
-| | Pre-compiled Tarball | This Conda Install |
-|---|---|---|
-| GLIBC dependency | System GLIBC — risky on Arch | Conda-bundled — isolated |
-| Update method | Manual reinstall | `mamba update heasoft` |
-
-
-
-
-For a standard Bash shell (`bash`) it will configure everything perfectly for your `henv` environment without any syntax hiccups.
-
-### The Complete Bash CALDB Setup Guide
-
-**1. Create the Directory and Download the Data**
-This ensures the files land exactly in `software/tools` as HEASOFT expects.
+**Step 1: Create the Directory and Download the Data**
+NASA's setup tarball does *not* create the required folder structure automatically. We must create the `software/tools` subdirectory first, move into it, and extract the files there.
 
 ```bash
-# Move to home and create the master directory
-mkdir -p ~/caldb
-cd ~/caldb
+# 1. Create the master directory AND the required subdirectories
+mkdir -p ~/caldb/software/tools
+cd ~/caldb/software/tools
 
-# Download the setup files
+# 2. Download the setup files directly into the tools folder
 wget https://heasarc.gsfc.nasa.gov/FTP/caldb/software/tools/caldb_setup_files.tar.Z
 
-# Extract the files (this creates the software/tools/ structure automatically)
+# 3. Extract the files (they will now unpack correctly inside software/tools/)
 tar -zxvf caldb_setup_files.tar.Z
 
-# Clean up the tarball
+# 4. Clean up the tarball
 rm caldb_setup_files.tar.Z
 
 ```
 
-**2. Patch the Initialization Script**
+**Step 2: Patch the Initialization Script**
 The default HEASOFT script needs your absolute path. This `sed` command automatically finds the dummy variable and replaces it with your actual `~/caldb` path.
 
 ```bash
@@ -106,8 +87,8 @@ sed -i "s|^CALDB=.*|CALDB=$HOME/caldb; export CALDB|" ~/caldb/software/tools/cal
 
 ```
 
-**3. Create the Conda Environment Hooks**
-This links the CALDB variables to your `henv` environment so they only load when XSPEC is active.
+**Step 3: Create the Conda Environment Hooks**
+This links the CALDB variables to your `henv` environment so they only load when the environment is active.
 
 ```bash
 # Locate your henv environment path
@@ -134,7 +115,9 @@ EOF
 
 ```
 
-**4. Verify the Installation**
+*(Note: Conda will automatically execute these `.sh` files upon activation when using Bash or Zsh. If you switch back to Fish permanently later, you will need to translate these hooks into `.fish` scripts.)*
+
+**Step 4: Verify the Installation**
 Bounce the environment to trigger the new scripts and run the check.
 
 ```bash
@@ -144,10 +127,27 @@ caldbinfo INST SWIFT XRT
 
 ```
 
-### A Quick Note on Shell Compatibility
+> If successful, this will report `Local CALDB appears to be set-up & accessible` and `caldbinfo 1.1.0 completed successfully.`
 
-Because Conda is smart about extensions, the `caldb_env.sh` scripts created in step 3 will automatically execute whenever you activate `henv` **while using Bash or Zsh**.
+---
 
-If you ever decide to stick with Fish as your daily driver on a future install, Conda will ignore those `.sh` files. You would just need to swap Step 3 with the `.fish` echo blocks we used earlier to ensure Conda passes the variables to your Fish session.
-| Breakage risk on rolling | High | Very low |
-| Recovery | Painful | Remove env and reinstall |
+## Part 3: Maintenance & Rolling Release Safety
+
+HEASoft installed via the HEASARC conda channel bundles its own runtime libraries inside the environment. Unlike the pre-compiled tarball from the HEASoft website (which links against system GLIBC), this installation is effectively isolated from `pacman -Syu` updates.
+
+### Safety Comparison
+
+| Feature | Pre-compiled Tarball | This Conda Install |
+| --- | --- | --- |
+| **GLIBC dependency** | System GLIBC — risky on Arch | Conda-bundled — isolated |
+| **Update method** | Manual reinstall | `mamba update heasoft` |
+| **Breakage risk on rolling** | High | Very low |
+| **Recovery** | Painful | Remove env and reinstall |
+
+### Maintenance Commands
+
+| Scenario | Action |
+| --- | --- |
+| **Update HEASoft** | `mamba update heasoft -c [https://heasarc.gsfc.nasa.gov/FTP/software/conda/](https://heasarc.gsfc.nasa.gov/FTP/software/conda/) -c conda-forge` |
+| **Xspec data out of date** | `mamba update xspec-data -c [https://heasarc.gsfc.nasa.gov/FTP/software/conda/](https://heasarc.gsfc.nasa.gov/FTP/software/conda/) -c conda-forge` |
+| **Broken environment** | Do not attempt to fix it. Run `mamba env remove -n henv` and repeat Steps 1–2 |
