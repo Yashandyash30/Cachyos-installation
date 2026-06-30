@@ -35,7 +35,7 @@ Within the Antigravity IDE (which is fully VS Code compatible), we rely on two p
 
 ## 3. IDE Configuration (JSON Files)
 
-We customized the IDE to automatically build on save, configure PDF SyncTeX, and set up a custom dictionary for astrophysics jargon.
+We customized the IDE to automatically build on save, configure PDF SyncTeX, set up a custom dictionary for astrophysics jargon, enable word wrap for LaTeX code, and remove title breadcrumbs for the PDF viewer.
 
 ### A. Settings (`settings.json`)
 
@@ -66,19 +66,33 @@ To access this, you can open the Command Palette (`Ctrl+Shift+P`), type `Open Se
             "Piecewise",
             "SyncTeX"
         ]
-    }
+    },
+
+    // --- Editor Formatting & View Configurations ---
+    // Enable word wrap for LaTeX files
+    "[latex]": {
+        "editor.wordWrap": "on"
+    },
+
+    // Remove title breadcrumb from the editor globally (including PDF viewer tabs)
+    "breadcrumbs.enabled": false,
+    "editor.minimap.enabled": false
 }
 ```
 *(Your full configuration file is located at [`settings.json`](file:///home/void/.config/Antigravity%20IDE/User/settings.json))*
 
 ### B. Keybindings (`keybindings.json`)
 
-We also set up **Forward SyncTeX** (Code -> PDF) so you can quickly jump from your LaTeX code to the exact spot in the rendered PDF. Because the IDE doesn't support binding mouse clicks in `keybindings.json`, we mapped it to a clean keyboard shortcut: `Ctrl + J`.
+We also set up **Forward SyncTeX** (Code -> PDF) so you can quickly jump from your LaTeX code to the exact spot in the rendered PDF. Because the IDE doesn't support binding mouse clicks in `keybindings.json`, we mapped it to a clean keyboard shortcut: `Ctrl + J`. We also explicitly unbind it from the default terminal toggle so it doesn't conflict.
 
 To access this, open the Command Palette (`Ctrl+Shift+P`), type `Open Keyboard Shortcuts (JSON)`, and add:
 
 ```json
 [
+    {
+        "key": "ctrl+j",
+        "command": "-workbench.action.togglePanel"
+    },
     {
         "key": "ctrl+j",
         "command": "latex-workshop.synctex",
@@ -94,7 +108,7 @@ With everything set up, your workflow in Niri using Antigravity IDE looks like t
 
 > [!TIP]
 > **The Workflow**
-> 1. Open your `.tex` file and start typing.
+> 1. Open your `.tex` file and start typing. **Word wrap** ensures that your long paragraphs of text automatically wrap in the editor, making it easier to read.
 > 2. **Building:** Press `Ctrl + S` to save. LaTeX Workshop will automatically compile the PDF in the background.
 > 3. **Forward SyncTeX (Code to PDF):** While your cursor is on a line of code, press **`Ctrl + J`**. The PDF viewer tab will automatically scroll to and highlight the corresponding rendered text.
 > 4. **Reverse SyncTeX (PDF to Code):** **Double-click** any text in the PDF viewer tab. The editor will instantly jump to the corresponding line in your `.tex` file.
