@@ -1,4 +1,4 @@
-Here is the complete, updated installation guide reflecting your exact setup, including the source link, the home directory path, and the necessary step to install `pip`.
+Installation guide for CYGALE
 
 ### **Step 1: Download and Extract CIGALE**
 
@@ -87,3 +87,5 @@ pcigale --help
 ```
 
 If this displays the CIGALE help menu, your setup is fully complete and ready for your research.
+
+Try running pcigale, pcigale-filters, or pcigale-plots in your terminal to confirm they are recognized. If your system doesn't recognize the commands, double-check that the installation path is included in your system's $PATH variable.
