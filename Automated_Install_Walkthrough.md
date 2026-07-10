@@ -65,3 +65,29 @@ When you are done testing, you can delete the sandbox with: `distrobox rm test-c
    ./01-system-config.sh
    # It will automatically copy all your backed up Dotfiles to the correct locations!
    ```
+
+---
+
+## 5. System and Application Automations
+*Added from the Configuration Guides*
+
+### `01-system-config.sh`
+*   **TLP Power Management:** If a laptop is detected, it automatically stops and masks `power-profiles-daemon`, installs `tlp` + `tlp-rdw`, and enables the TLP daemon.
+*   **USB Wake Fix:** Automatically generates and enables `usb-wake.service` to fix the `XHC0` issue on laptops, allowing you to wake the machine with your KVM keyboard.
+
+### `02-app-config.sh`
+*   **Dolphin & GTK Portals:** Automatically sets the GTK color scheme to `prefer-dark`, sets Dolphin as the default directory handler, and enforces Qt6 theming by generating the `~/.config/environment.d/qt.conf` file.
+*   **SDDM Fix:** Detects if CachyOS's default `plasmalogin.service` is active and disables it in favor of the classic `sddm.service`.
+
+### `03-software-install.sh`
+*   **Smart Media Drivers:** Reads the GPU vendor and intelligently checks if media drivers (`intel-media-driver` or `libva-mesa-driver`/`mesa-vdpau`) are missing before safely installing them to support SDDM.
+*   **Essential Software:** Automatically installs Walker, Elephant, Cloudflare WARP, and GitHub CLI.
+*   **Walker Fix:** Deletes the CPU-draining `dnfpackages.so` plugin for Elephant.
+*   **WARP Daemon:** Enables the `warp-svc.service` on boot.
+*   **LaTeX (Prompted):** Adds a safety prompt warning about the ~3GB download size before installing `texlive-meta` and `biber`.
+
+### `04-research-apps.sh`
+*   **PyRAF & DAOPHOT II Pipeline:** Completely replaces the standard `apt install` line with the massive containerized installation pipeline.
+    *   Adds `i386` architecture support and 32-bit core libraries inside the Distrobox container.
+    *   Crosses the bridge into the host's `Pyraf_Files` folder to install legacy `gcc-3.4` and `libg2c0` `.deb` files.
+    *   Unzips `dao2.zip`, fixes the nested folder structure, sets execution permissions, and injects custom aliases (`daophot`, `allstar`, etc.) directly into the container's `.bashrc`.

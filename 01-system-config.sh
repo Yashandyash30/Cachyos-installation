@@ -19,7 +19,35 @@ CHASSIS=$(cat /sys/class/dmi/id/chassis_type 2>/dev/null || echo "Unknown")
 if [[ "$CHASSIS" == "9" || "$CHASSIS" == "10" ]]; then
     echo "Device Type: Laptop detected."
     # Apply laptop-specific settings (e.g. lid switch optimizations)
-    sudo sed -i 's/#HandleLidSwitch=suspend/HandleLidSwitch=suspend/' /etc/systemd/logind.conf 2>/dev/null
+    sudo sed -i 's/.*HandleLidSwitch=.*/HandleLidSwitch=ignore/' /etc/systemd/logind.conf 2>/dev/null
+    sudo sed -i 's/.*HandleLidSwitchExternalPower=.*/HandleLidSwitchExternalPower=ignore/' /etc/systemd/logind.conf 2>/dev/null
+    sudo sed -i 's/.*HandleLidSwitchDocked=.*/HandleLidSwitchDocked=ignore/' /etc/systemd/logind.conf 2>/dev/null
+    sudo systemctl restart systemd-logind 2>/dev/null
+    
+    # Switch power profiles daemon to TLP
+    echo "Configuring TLP for laptop power management..."
+    sudo systemctl stop power-profiles-daemon 2>/dev/null
+    sudo systemctl mask power-profiles-daemon 2>/dev/null
+    sudo pacman -S --needed tlp tlp-rdw --noconfirm
+    sudo systemctl enable --now tlp
+    
+    # Configure USB Wake for KVM
+    echo "Configuring USB Wake Support..."
+    cat << 'EOF' > /tmp/usb-wake.service
+[Unit]
+Description=Enable USB Wakeup
+DefaultDependencies=no
+After=basic.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'if grep -q "XHC0.*disabled" /proc/acpi/wakeup; then echo XHC0 > /proc/acpi/wakeup; fi'
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    sudo cp /tmp/usb-wake.service /etc/systemd/system/usb-wake.service
+    sudo systemctl enable --now usb-wake.service
 else
     echo "Device Type: Desktop PC detected."
     sudo sed -i 's/#HandleLidSwitch=suspend/HandleLidSwitch=ignore/' /etc/systemd/logind.conf 2>/dev/null

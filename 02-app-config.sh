@@ -44,4 +44,22 @@ else
     echo "Skipping network share setup."
 fi
 
+# Dolphin & GTK Portals
+echo -e "\n--- Configuring Dolphin & GTK Portals ---"
+gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
+xdg-mime default org.kde.dolphin.desktop inode/directory
+xdg-mime default org.kde.dolphin.desktop application/x-directory
+mkdir -p ~/.config/environment.d
+echo 'QT_QPA_PLATFORMTHEME=qt6ct' > ~/.config/environment.d/qt.conf
+
+# SDDM Configuration
+echo -e "\n--- Configuring SDDM ---"
+if systemctl status display-manager | grep -iq plasmalogin; then
+    echo "Swapping plasmalogin to classic SDDM..."
+    sudo systemctl disable plasmalogin.service
+    sudo systemctl enable sddm.service
+else
+    echo "Classic SDDM is already the default display manager."
+fi
+
 echo -e "\nPhase 2 Complete! Application configs applied."
