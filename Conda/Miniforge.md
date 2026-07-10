@@ -87,7 +87,19 @@ conda config --show channel_priority
 
 ---
 
-## Phase 4: Daily Workflow
+## Phase 4
+On Arch-based distros like CachyOS, it's generally best practice to keep Conda disabled by default. When it's active globally, it can randomly break system tools that rely on the system-level Python.
+
+You can tell Conda to stay off until you explicitly ask for it:
+
+```bash
+conda config --set auto_activate_base false
+
+```
+
+After running this, you'll need to restart your session (log out and back in). Your launcher will go back to using the correct system Python, and BleachBit will open normally. When you actually need Conda for coding, just type `conda activate`.
+
+## Phase 5: Daily Workflow
 
 > Because `conda-forge` is now your strict default, you no longer need to type `-c conda-forge` in every command.
 
