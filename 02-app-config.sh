@@ -29,17 +29,22 @@ fi
 
 # Network Sharing Setup
 echo -e "\n--- Configuring Network Sharing (KSMBD) ---"
-read -p "Is this machine the SERVER (host) or CLIENT (guest) for KSMBD network shares? (s/c/skip) " -n 1 -r
+read -p "Do you want to enable Bidirectional Network Sharing (Both Host and Client)? (y/n) " -n 1 -r
 echo
-if [[ $REPLY =~ ^[Ss]$ ]]; then
-    echo "Setting up KSMBD Server..."
-    sudo pacman -S --needed ksmbd-tools --noconfirm
-    echo "You will need to run 'sudo ksmbd.adduser -a void' and configure /etc/ksmbd/ksmbd.conf manually for security."
-elif [[ $REPLY =~ ^[Cc]$ ]]; then
-    echo "Setting up KSMBD Client..."
-    sudo pacman -S --needed cifs-utils --noconfirm
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo "Installing Server & Client tools..."
+    sudo pacman -S --needed ksmbd-tools cifs-utils --noconfirm
+    
+    # Server Setup
+    sudo mkdir -p /etc/ksmbd
+    
+    # Client Setup
     sudo mkdir -p /mnt/Remote_Folder
-    echo "Client tools installed. Remember to create /etc/samba/credentials and add your fstab entry."
+    sudo mkdir -p /etc/samba
+    
+    echo "✅ Tools installed! Manual setup required:"
+    echo "  - SERVER: Run 'sudo ksmbd.adduser -a void' and configure /etc/ksmbd/ksmbd.conf"
+    echo "  - CLIENT: Create /etc/samba/credentials and add your fstab entry."
 else
     echo "Skipping network share setup."
 fi
