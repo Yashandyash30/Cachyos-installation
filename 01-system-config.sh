@@ -58,6 +58,7 @@ fi
 
 if [ -f "$DOTFILES_DIR/keyboard/00-keyboard.conf" ]; then
     echo "Restoring system keyboard config..."
+    sudo mkdir -p /etc/X11/xorg.conf.d/
     sudo cp "$DOTFILES_DIR/keyboard/00-keyboard.conf" /etc/X11/xorg.conf.d/
 fi
 
