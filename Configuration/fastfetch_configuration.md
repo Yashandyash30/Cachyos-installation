@@ -20,25 +20,29 @@ nano ~/.config/fastfetch/config.jsonc
 {
     "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
     "logo": {
-        "type": "none"
-    },
-    "display": {
-        "separator": " ➜ ",
-        "color": {
-            "separator": "90"
+        "type": "small",
+        "padding": {
+            "top": 1,
+            "right": 2
         }
     },
+    "display": {
+        "separator": " "
+    },
     "modules": [
-        { "type": "title", "format": "{user-name}@{host-name}" },
-        { "type": "custom", "format": "─────────────", "outputColor": "90" },
-        { "type": "os", "key": "OS ", "keyColor": "31" },
-        { "type": "kernel", "key": "KRN", "keyColor": "32" },
-        { "type": "wm", "key": "WM ", "keyColor": "33" },
-        { "type": "shell", "key": "SHL", "keyColor": "34" },
-        { "type": "cpu", "key": "CPU", "keyColor": "35" },
-        { "type": "memory", "key": "RAM", "keyColor": "36" },
-        { "type": "uptime", "key": "UP ", "keyColor": "31" },
-        { "type": "custom", "format": "\u001b[31m● \u001b[32m● \u001b[33m● \u001b[34m● \u001b[35m● \u001b[36m●" }
+        { "key": "╭──────────╮", "type": "custom" },
+        { "key": "│  USR    │", "type": "title", "format": "{user-name}@{host-name}" },
+        { "key": "│  OS     │", "type": "os", "keyColor": "31" },
+        { "key": "│  KRN    │", "type": "kernel", "keyColor": "32" },
+        { "key": "│  WM     │", "type": "wm", "keyColor": "33" },
+        { "key": "│  SHL    │", "type": "shell", "keyColor": "34" },
+        { "key": "│  CPU    │", "type": "cpu", "keyColor": "35" },
+        { "key": "│  RAM    │", "type": "memory", "keyColor": "36" },
+        { "key": "│ ├ 󰋊 DSK  │", "type": "disk", "keyColor": "33" },
+        { "key": "│  UP     │", "type": "uptime", "keyColor": "31" },
+        { "key": "├──────────┤", "type": "custom" },
+        { "key": "│  COL    │", "type": "custom", "format": "\u001b[31m● \u001b[32m● \u001b[33m● \u001b[34m● \u001b[35m● \u001b[36m●" },
+        { "key": "╰──────────╯", "type": "custom" }
     ]
 }
 
