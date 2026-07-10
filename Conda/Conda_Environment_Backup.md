@@ -287,7 +287,7 @@ python -m ipykernel install --user --name=henv --display-name="Python (henv)"
 
 ## Part 6 — Automated Backup Script
 
-Instead of running the export commands manually each time, use this script. It auto-detects where mamba is installed so it won't break if you ever move your home directory or switch distributions.
+Instead of running the export commands manually each time, use this script. It auto-detects where mamba is installed AND dynamically detects all your existing environments, so you never have to manually edit it when you create a new environment!
 
 ### Step 6.1 — Create the script
 
@@ -317,21 +317,27 @@ echo "✅ Using mamba at: $MAMBA_CMD"
 echo ""
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
-BACKUP_DIR="$HOME/conda-backups"
+BACKUP_DIR="$HOME/Cachyos-installation/conda-backups"
 mkdir -p "$BACKUP_DIR"
-cd "$BACKUP_DIR"
+cd "$BACKUP_DIR" || exit
 
-# Add your environments here
-ENVS=("henv" "fermi" "threeML" "pyraf" "astro_photometry")
+# ── Dynamic Environment Detection ─────────────────────────────────────────────
+echo "🔍 Detecting existing environments..."
+
+# This fetches the output of mamba env list, strips out the paths, 
+# and filters out comments, empty lines, 'base', and mamba's table borders/headers.
+mapfile -t ENVS < <($MAMBA_CMD env list | awk '{print $1}' | grep -Ev "^#|^base$|^$|^Name$|^─")
+
+if [ ${#ENVS[@]} -eq 0 ]; then
+    echo "⚠️ No custom Conda environments found to backup."
+    exit 0
+fi
+
+echo "Found ${#ENVS[@]} environments to backup: ${ENVS[*]}"
+echo ""
 
 # ── Export ────────────────────────────────────────────────────────────────────
 for env in "${ENVS[@]}"; do
-    # Bulletproof check: awk grabs only the first column, grep -Fxq forces an exact full-word match
-    if ! $MAMBA_CMD env list | awk '{print $1}' | grep -Fxq "$env"; then
-        echo "⚠️  Skipping '$env' — environment not found in mamba"
-        continue
-    fi
-
     echo "📦 Backing up: $env"
 
     # Suppress output to keep the terminal clean, only show errors if they happen
