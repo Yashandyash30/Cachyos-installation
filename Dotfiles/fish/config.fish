@@ -89,6 +89,14 @@ function cigale
     set_color normal
 end
 
+function cigale2s
+    clear
+    conda activate cigale2s
+    set_color yellow
+    echo "cigale2s env activated"
+    set_color normal
+end
+
 function threemlinit
     clear
     conda activate threeML
