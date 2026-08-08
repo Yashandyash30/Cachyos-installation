@@ -1,4 +1,4 @@
-if i cahnge configs how 
+if i cahnge configs how
 
 # 01 - Network and Remote Access Guide
 
@@ -133,7 +133,10 @@ If your laptop constantly changes IPs on Wi-Fi, you can use its `.local` hostnam
 1. Ensure both machines have unique names (`sudo hostnamectl set-hostname new-name`).
 2. Check the server's name using `hostname`.
 3. In the client's `/etc/fstab`, replace the IP address with the hostname like this: `//TargetHostname.local/ShareName`.
-4. Run `sudo systemctl daemon-reload` and `sudo systemctl restart local-fs.target`.
+4. ```Shell
+   //void.local/Home  /mnt/Laptop_Home  cifs  credentials=/etc/samba/credentials,uid=1000,gid=1000,users,noauto,nofail,_netdev 0  0
+   ```
+5. Run `sudo systemctl daemon-reload` and `sudo systemctl restart local-fs.target`.
 
 #### Option B: Accessing Files While Using Cloudflare WARP
 

@@ -105,6 +105,8 @@ binds {
     Mod+Shift+Ctrl+Up { move-column-to-monitor-up; }
     Mod+Shift+Ctrl+Down { move-column-to-monitor-down; }
     Mod+Shift+P { power-off-monitors; }
+   // Emergency Monitor Wake-Up (Panic Button via DDC/CI Hardware Standby)
+    Mod+Shift+Backspace { spawn "bash" "-c" "ddcutil -d 1 setvcp 0xd6 0x01; ddcutil -d 2 setvcp 0xd6 0x01"; }
 
     // =========================================
     // COLUMN MANAGEMENT
@@ -163,4 +165,6 @@ binds {
     Mod+Shift+Slash { show-hotkey-overlay; }
     Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
     Mod+Shift+E { quit; }
+
+
 }
