@@ -1,3 +1,5 @@
+# SSH & Tailscale Cross-Platform Setup Guide
+
 Tailscale completely handles the routing for you. You do not need separate local and remote setups.
 
 Tailscale uses a peer-to-peer mesh architecture. When your laptop and PC are on the same local network, Tailscale detects this and routes the SSH traffic directly over your LAN for maximum speed and zero latency. When you are away from home, it automatically creates a secure tunnel over the internet using NAT traversal. You just use the same Tailscale IP everywhere.
@@ -14,18 +16,13 @@ By default, CachyOS might not have the SSH daemon running. You need to enable it
 ```bash
 sudo pacman -S openssh
 sudo systemctl enable --now sshd
-
 ```
-
 
 2. **Find your Laptop's Tailscale IP:**
 Since you already know your PC's IP (`100.117.73.75`), run this on your laptop to get its specific IP:
 ```bash
 tailscale ip -4
-
 ```
-
-
 *(Note this IP down for the PC's configuration step).*
 
 ---
@@ -37,26 +34,19 @@ To make your Fish aliases completely seamless, set up SSH keys so you don't have
 1. **Generate keys (Run on BOTH PC and Laptop):**
 ```bash
 ssh-keygen -t ed25519
-
 ```
-
-
 *(Press Enter for all prompts to accept the defaults and skip the passphrase).*
+
 2. **Send Laptop's key to the PC (Run on Laptop):**
 ```bash
 ssh-copy-id <your_username>@100.117.73.75
-
 ```
-
-
 *(It will ask for your PC's user password once).*
+
 3. **Send PC's key to the Laptop (Run on PC):**
 ```bash
 ssh-copy-id <your_username>@<LAPTOP_TAILSCALE_IP>
-
 ```
-
-
 
 ---
 
@@ -84,7 +74,6 @@ function sshpc
     ssh <your_username>@100.117.73.75
 end
 funcsave sshpc
-
 ```
 
 ### On your PC (The Target Machine)
@@ -97,7 +86,37 @@ function sshlaptop
     ssh <your_username>@<LAPTOP_TAILSCALE_IP>
 end
 funcsave sshlaptop
+```
 
+---
+
+## Phase 4: Emergency Streaming Recovery (Over SSH)
+
+If your Moonlight stream crashes on your laptop, the automated "Undo Command" in Sunshine won't trigger. This leaves your physical monitors turned off (in hardware sleep mode) and Sunshine potentially in a bad state.
+
+You can instantly recover your PC remotely by sending these commands from your laptop's terminal:
+
+**1. Wake Up Both Physical Monitors:**
+```bash
+ssh <your_username>@100.117.73.75 "ddcutil -d 1 setvcp 0xd6 0x01; ddcutil -d 2 setvcp 0xd6 0x01"
+```
+
+**2. Restart the Sunshine Service:**
+```bash
+ssh <your_username>@100.117.73.75 "systemctl --user restart sunshine"
+```
+
+**(Highly Recommended) Create a `fixstream` Alias:**
+Bundle these commands into a single Fish alias on your laptop for instant one-click recovery.
+```fish
+function fixstream
+    echo "Waking monitors..."
+    ssh <your_username>@100.117.73.75 "ddcutil -d 1 setvcp 0xd6 0x01; ddcutil -d 2 setvcp 0xd6 0x01"
+    echo "Restarting Sunshine..."
+    ssh <your_username>@100.117.73.75 "systemctl --user restart sunshine"
+    echo "Recovery complete."
+end
+funcsave fixstream
 ```
 
 ---
@@ -105,9 +124,8 @@ funcsave sshlaptop
 ## Your New Daily Workflow
 
 * **From your Laptop (Anywhere):** Type `sshpc`.
-* If the PC is already on (locally or at home), you will instantly log in.
-* If the PC is off, Fish will automatically trigger `voidphone` to wake it up, wait for CachyOS and Tailscale to launch, and then log you in.
-
-
+  * If the PC is already on (locally or at home), you will instantly log in.
+  * If the PC is off, Fish will automatically trigger `voidphone` to wake it up, wait for CachyOS and Tailscale to launch, and then log you in.
+* **Stream Recovery:** Type `fixstream` from your laptop if Moonlight ever crashes and leaves your PC monitors turned off.
 * **From your PC:** Type `sshlaptop` to instantly drop into your laptop's terminal.
 * **X11 Forwarding (Optional):** If you ever need to launch a graphical application from one machine and display it on the other within your Niri/DMS environment, simply add `-Y` to your ssh commands (e.g., `ssh -Y <your_username>@100.117.73.75`).
