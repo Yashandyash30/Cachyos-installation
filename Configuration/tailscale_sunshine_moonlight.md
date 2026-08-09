@@ -143,7 +143,7 @@ nano ~/.config/niri/dms/binds.kdl
 **2. Add this command to your binds section:**
 ```kdl
     // Emergency Monitor Wake-Up (Panic Button via DDC/CI Hardware Standby)
-    Mod+Shift+Backspace { spawn "bash" "-c" "ddcutil -d 1 setvcp 0xd6 0x01; ddcutil -d 2 setvcp 0xd6 0x01"; }
+    Mod+Shift+Backspace { spawn "bash" "-c" "ddcutil -d 1 setvcp 0xd6 0x01 || true; ddcutil -d 2 setvcp 0xd6 0x01 || true"; }
 ```
 *(Note: If you are entirely locked out of the PC, you can trigger these same commands remotely via SSH from your laptop—see the SSH/Tailscale guide for those commands).*
 
@@ -162,12 +162,12 @@ Change the name from **Desktop** to **Desktop-Privacy**.
 **3. Configure the Pre/Post Commands:**
 Below the command preparation section, set the **Do Command** to spin up the virtual screen and put the physical monitors to sleep:
 ```bash
-sh -c "/usr/local/bin/niri-virtual msg create-virtual-output --name sunshine --width ${SUNSHINE_CLIENT_WIDTH} --height ${SUNSHINE_CLIENT_HEIGHT} --refresh-rate ${SUNSHINE_CLIENT_FPS} || true; sleep 2; ddcutil -d 1 setvcp 0xd6 0x04; ddcutil -d 2 setvcp 0xd6 0x04"
+sh -c "/usr/local/bin/niri-virtual msg create-virtual-output --name sunshine --width ${SUNSHINE_CLIENT_WIDTH} --height ${SUNSHINE_CLIENT_HEIGHT} --refresh-rate ${SUNSHINE_CLIENT_FPS} || true; sleep 2; ddcutil -d 1 setvcp 0xd6 0x04 || true; ddcutil -d 2 setvcp 0xd6 0x04 || true"
 ```
 
 Set the **Undo Command** to wake your physical monitors and destroy the virtual output upon disconnect:
 ```bash
-sh -c "ddcutil -d 1 setvcp 0xd6 0x01; ddcutil -d 2 setvcp 0xd6 0x01; /usr/local/bin/niri-virtual msg remove-virtual-output sunshine"
+sh -c "ddcutil -d 1 setvcp 0xd6 0x01 || true; ddcutil -d 2 setvcp 0xd6 0x01 || true; /usr/local/bin/niri-virtual msg remove-virtual-output sunshine || true"
 ```
 Click **Save** at the bottom to apply changes.
 

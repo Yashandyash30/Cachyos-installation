@@ -107,7 +107,7 @@ You can instantly recover your PC remotely by sending these commands from your l
 **1. Wake Up Both Physical Monitors:**
 
 ```bash
-ssh void@100.117.73.75 "ddcutil -d 1 setvcp 0xd6 0x01; ddcutil -d 2 setvcp 0xd6 0x01"
+ssh void@100.117.73.75 "ddcutil -d 1 setvcp 0xd6 0x01 || true; ddcutil -d 2 setvcp 0xd6 0x01 || true"
 ```
 
 **2. Restart the Sunshine Service:**
@@ -116,18 +116,24 @@ ssh void@100.117.73.75 "ddcutil -d 1 setvcp 0xd6 0x01; ddcutil -d 2 setvcp 0xd6 
 ssh void@100.117.73.75 "systemctl --user restart sunshine"
 ```
 
-**(Highly Recommended) Create a `fixstream` Alias:**
-Bundle these commands into a single Fish alias on your laptop for instant one-click recovery.
+**(Highly Recommended) Create `fixstream` and `checkmonitors` Aliases:**
+Bundle these commands into Fish aliases on your laptop for instant one-click access.
 
 ```fish
 function fixstream
     echo "Waking monitors..."
-    ssh void@100.117.73.75 "ddcutil -d 1 setvcp 0xd6 0x01; ddcutil -d 2 setvcp 0xd6 0x01"
+    ssh void@100.117.73.75 "ddcutil -d 1 setvcp 0xd6 0x01 || true; ddcutil -d 2 setvcp 0xd6 0x01 || true"
     echo "Restarting Sunshine..."
     ssh void@100.117.73.75 "systemctl --user restart sunshine"
     echo "Recovery complete."
 end
 funcsave fixstream
+
+function checkmonitors
+    echo "Querying physical monitor power states..."
+    ssh void@100.117.73.75 "ddcutil -d 1 getvcp d6 || true; ddcutil -d 2 getvcp d6 || true"
+end
+funcsave checkmonitors
 ```
 
 ---
