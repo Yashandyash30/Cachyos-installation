@@ -7,6 +7,7 @@ This comprehensive guide merges your remote management tools, Wake-on-LAN (WoL) 
 ## Phase 1: Android Phone (`voidphone`) Foundation
 
 ### 1. Install Termux & Core Tools
+
 Download and install **Termux** (from F-Droid). Open Termux and install the essential packages, including `proot-distro` for your isolated Linux environment:
 
 ```bash
@@ -23,17 +24,21 @@ passwd
 ```
 
 ### 2. Set Fish as Your Default Shell
+
 Tell Termux to always open in Fish instead of Bash:
 
 ```bash
 chsh -s fish
 ```
+
 Now, type `fish` and press Enter to switch to it for the next steps.
 
 ### 3. Configure Prompt & Network Scanner
+
 Run these commands inside your new Fish shell to set up your custom prompt and background services.
 
 **Set the custom `voidphone` prompt:**
+
 ```fish
 function fish_prompt
     set_color green; echo -n "voidphone"
@@ -45,6 +50,7 @@ funcsave fish_prompt
 ```
 
 **Add your `scanlan` alias for network discovery:**
+
 ```fish
 function scanlan
     sudo arp-scan -I wlan0 --localnet
@@ -53,10 +59,51 @@ funcsave scanlan
 ```
 
 **Auto-start SSH on manual Termux launch:**
+
 ```fish
 mkdir -p ~/.config/fish
 echo 'if not pgrep -x sshd > /dev/null; sshd; end' >> ~/.config/fish/config.fish
 source ~/.config/fish/config.fish
+```
+
+**Set up Passwordless SSH (SSH Keys):**
+To avoid entering your PC or laptop password every time you connect from your phone, generate an SSH key on your phone and copy it to your devices:
+
+```fish
+# 1. Generate the key (Press Enter for all prompts to skip the passphrase)
+ssh-keygen -t ed25519
+
+# 2. Copy the key to your PC (it will ask for your PC password one last time)
+ssh-copy-id void@100.117.73.75
+
+# 3. Copy the key to your Laptop (replace with your Laptop's Tailscale IP)
+ssh-copy-id void@100.70.236.70
+```
+
+**Add your cross-platform SSH & Wake-on-LAN aliases:**
+
+```fish
+function sshpc
+    # Ping the PC's Tailscale IP once to see if it is online
+    ping -c 1 -W 1 100.117.73.75 > /dev/null
+  
+    if test $status -ne 0
+        echo "PC is offline. Sending Wake-on-LAN locally..."
+        wol f0:4e:a4:37:91:66
+        echo "Waiting 30 seconds for PC to boot and connect to Tailscale..."
+        sleep 30
+    end
+  
+    echo "Connecting to PC..."
+    ssh void@100.117.73.75
+end
+funcsave sshpc
+
+function sshlaptop
+    echo "Connecting to Laptop..."
+    ssh void@100.70.236.70
+end
+funcsave sshlaptop
 ```
 
 ---
@@ -66,14 +113,18 @@ source ~/.config/fish/config.fish
 We will use `proot-distro` to create an isolated, standard Ubuntu server environment to run Node.js without Termux compiler limits.
 
 ### 1. Install the Ubuntu Container
+
 In your Termux Fish shell:
+
 ```fish
 proot-distro install ubuntu
 proot-distro login ubuntu
 ```
+
 *(Your prompt will change—you are now operating inside the Ubuntu environment).*
 
 ### 2. Install Uptime Kuma
+
 Run these commands while logged into the Ubuntu container to install Node.js 20 and setup the dashboard:
 
 ```bash
@@ -87,6 +138,7 @@ npm run setup
 ```
 
 Once finished, exit the container to return to Termux:
+
 ```bash
 exit
 ```
@@ -100,6 +152,7 @@ Since you are rooted, the most robust way to start your services is via a Magisk
 *(Note: You do not need the Termux:Boot app for this. You can uninstall it).*
 
 ### 1. Create the Magisk Script
+
 Open Termux (make sure you are at the native Termux `~ $` prompt, not inside Ubuntu) and run this:
 
 ```fish
@@ -112,10 +165,12 @@ su u0_a183 -c "source /data/data/com.termux/files/usr/etc/profile && nohup proot
 ```
 
 ### 2. Install to Magisk & Enable
+
 ```fish
 sudo mv ~/termux_services.sh /data/adb/service.d/
 sudo chmod +x /data/adb/service.d/termux_services.sh
 ```
+
 *(If Magisk asks for root permission, click Grant).*
 
 Your phone will now silently boot all services directly from Android's init system every time you restart!
@@ -125,11 +180,13 @@ Your phone will now silently boot all services directly from Android's init syst
 ## Phase 4: Network & Android Configuration
 
 ### 1. Install and Configure Tailscale
+
 * Install **Tailscale** from the Play Store or F-Droid and log in.
 * Go to the [Tailscale Admin Console](https://login.tailscale.com/admin/machines) in a browser, rename your phone to **`voidphone`**. *(Note its Tailscale IP, e.g., `100.103.187.97`).*
 * In Android **Settings** > **Network & Internet** > **VPN**, tap the gear icon next to Tailscale and enable **Always-on VPN**.
 
 ### 2. Enable USB Debugging
+
 In Android **Developer Options**, turn on **USB Debugging** so your computers can interface with it over a physical USB cable.
 
 ---
@@ -139,11 +196,13 @@ In Android **Developer Options**, turn on **USB Debugging** so your computers ca
 Grab your laptop or PC, ensure Tailscale is connected, and open your web browser to **`http://100.103.187.97:3001`** *(replace with your phone's Tailscale IP if different)*.
 
 **1. Initial Configuration:**
+
 * **Database:** Select **SQLite** (Ultra-lightweight and perfect for mobile containers).
 * Create your admin username and password.
 
 **2. Add Your Core Network Monitors (Ping):**
 Click **+ Add New Monitor** and change the **Monitor Type** to **Ping**:
+
 * **Target 1:** CachyOS PC (Hostname: `100.117.73.75`, Heartbeat: 60)
 * **Target 2:** CachyOS Laptop (Hostname: *Your laptop's Tailscale IP*, Heartbeat: 60)
 * **Target 3:** Institute Wi-Fi Gateway (Hostname: `172.21.3.254`, Heartbeat: 60)
@@ -151,6 +210,7 @@ Click **+ Add New Monitor** and change the **Monitor Type** to **Ping**:
 **3. Add Your SSH Service Monitors (TCP Port):**
 To ensure your SSH services are actively listening and haven't crashed, monitor their specific TCP ports.
 Click **+ Add New Monitor** and change the **Monitor Type** to **TCP Port**:
+
 * **Target 1: CachyOS PC SSH**
   * Friendly Name: CachyOS PC - SSH
   * Hostname: `100.117.73.75`
@@ -169,9 +229,12 @@ Just hit **Save** once you enter those, and your dashboard will immediately star
 ## Phase 6: Target Devices Setup (PC & Laptop)
 
 ### 1. CachyOS PC Setup (The Target)
+
 **Enable Wake-on-LAN (BIOS & OS):**
+
 * Enable **Wake on LAN** (or PCI-E Wake) in your motherboard BIOS.
 * Enable WoL in the OS:
+
 ```bash
 sudo pacman -S ethtool tailscale
 sudo ethtool -s enp2s0 wol g
@@ -179,43 +242,53 @@ nmcli connection modify "Wired connection 1" 802-3-ethernet.wake-on-lan magic
 ```
 
 **Tailscale & Dynamic Phone Alias:**
+
 ```bash
 sudo systemctl enable --now tailscaled
 sudo tailscale up
 ```
-Open your Fish terminal and create the `phone` alias:
+
+*(Optional but highly recommended)* Set up passwordless SSH by sending your PC's SSH key to the phone:
+
+```bash
+ssh-copy-id -p 8022 u0_a183@100.103.187.97
+```
+
+*(If you don't have an SSH key, run `ssh-keygen -t ed25519` first).*
+
+Open your Fish terminal and create the `sshphone` alias :
+
 ```fish
-function phone
-    if test "$argv[1]" = "wifi"
-        ssh u0_a183@100.103.187.97 -p 8022
-    else
-        adb forward tcp:8022 tcp:8022 2>/dev/null
-        ssh u0_a183@127.0.0.1 -p 8022
-    end
+function sshphone
+    ssh u0_a183@100.103.187.97 -p 8022
 end
-funcsave phone
+funcsave sshphone
 ```
 
 ### 2. CachyOS Laptop Setup (The Commander)
+
 Install Tailscale:
+
 ```bash
 sudo pacman -S tailscale
 sudo systemctl enable --now tailscaled
 sudo tailscale up
 ```
 
+*(Optional but highly recommended)* Set up passwordless SSH by sending your laptop's SSH key to the phone:
+
+```bash
+ssh-copy-id -p 8022 u0_a183@100.103.187.97
+```
+
 **Dynamic Phone & Remote Wake Aliases:**
 Paste these into your laptop's Fish terminal:
+
 ```fish
-function phone
-    if test "$argv[1]" = "wifi"
-        ssh u0_a183@100.103.187.97 -p 8022
-    else
-        adb forward tcp:8022 tcp:8022 2>/dev/null
-        ssh u0_a183@127.0.0.1 -p 8022
-    end
+function sshphone
+    ssh u0_a183@100.103.187.97 -p 8022
 end
-funcsave phone
+funcsave sshphone
 
 function wakepc
     ssh u0_a183@100.103.187.97 -p 8022 "wol f0:4e:a4:37:91:66"
@@ -228,9 +301,9 @@ funcsave wakepc
 ## Daily Maintenance & Workflow
 
 * **Network Scanning:** Type `scanlan` on the phone to map connected devices.
-* **Phone Management (USB):** Plug phone into PC/Laptop and type `phone`.
-* **Phone Management (Wireless):** From anywhere via Tailscale, type `phone wifi`.
-* **Remote PC Wakeup:** From the laptop, type `wakepc`. Wait 15–30s for the PC to boot and connect to Tailscale, then SSH into it via `100.117.73.75`.
+* **Phone Management:** From anywhere via Tailscale, type `sshphone`.
+* **Remote Management from Phone:** Type `sshpc` on the phone to wake and connect to the PC, or `sshlaptop` to connect to the Laptop.
+* **Remote PC Wakeup (from Laptop):** From the laptop, type `wakepc`. Wait 15–30s for the PC to boot and connect to Tailscale, then SSH into it via `100.117.73.75` (or just use `sshpc`).
 * **Dashboard Logs:** To view live Uptime Kuma logs, run `cat ~/uptime-kuma-server.log` on the phone.
 * **Verify Container:** Run `pgrep -a proot` on the phone to ensure the container is active.
 
@@ -239,9 +312,11 @@ funcsave wakepc
 ## Recovery & Troubleshooting
 
 ### Accidentally Closed Termux?
+
 Because you are using the Magisk Boot Script (Phase 3), **you do not need to worry about this!** Android's app-killer cannot touch processes started by Magisk. You can freely swipe Termux away from your recent apps, and Uptime Kuma will remain 100% online.
 
 If for some reason you ever need to manually restart the services without rebooting your phone, you can run:
+
 ```bash
 sudo /data/adb/service.d/termux_services.sh
 ```
