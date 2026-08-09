@@ -191,17 +191,15 @@ To fix this without turning off your monitors (which causes pipeline crashes), y
 nano ~/.config/niri/config.kdl
 ```
 
-**2. Add this specific mapping to your `input` section:**
-*(Add this anywhere inside the `input { ... }` block)*
+**2. Add this specific output configuration to the bottom of the file:**
+*(Add this anywhere at the root level, outside of any other blocks like input or layout)*
 
 ```kdl
-    // Map all absolute touch/tablet inputs (used by Sunshine/Moonlight on mobile)
-    // directly to the virtual output to prevent boundary clipping.
-    touch {
-        map-to-output "sunshine"
-    }
-    tablet {
-        map-to-output "sunshine"
+    // Force the virtual output to spawn exactly at the origin (0,0).
+    // This perfectly overlaps it with the physical monitor space, completely
+    // eliminating the invisible absolute mouse boundary without needing to turn monitors off!
+    output "sunshine" {
+        position x=0 y=0
     }
 ```
 

@@ -16,17 +16,6 @@ gestures {
 // Find the full list of options on the wiki:
 // https://github.com/YaLTeR/niri/wiki/Configuration:-Input
 input {
-
-    // Map all absolute touch/tablet inputs (used by Sunshine/Moonlight on mobile)
-    // directly to the virtual output to prevent boundary clipping.
-    touch {
-        map-to-output "sunshine"
-    }
-    tablet {
-        map-to-output "sunshine"
-    }
-
-
     keyboard {
         xkb
 
@@ -301,6 +290,13 @@ recent-windows {
         Alt+grave       { next-window filter="app-id"; }
         Alt+Shift+grave { previous-window filter="app-id"; }
     }
+}
+
+// Force the virtual output to spawn exactly at the origin (0,0).
+// This perfectly overlaps it with the physical monitor space, completely
+// eliminating the invisible absolute mouse boundary without needing to turn monitors off!
+output "sunshine" {
+     position x=0 y=0
 }
 
 // Include dms files
