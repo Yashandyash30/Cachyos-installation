@@ -13,16 +13,19 @@ Here is the complete guide to setting up SSH on your CachyOS + Niri + DMS machin
 By default, CachyOS might not have the SSH daemon running. You need to enable it on both machines.
 
 1. **Install and start OpenSSH (Run on BOTH PC and Laptop):**
+
 ```bash
 sudo pacman -S openssh
 sudo systemctl enable --now sshd
 ```
 
 2. **Find your Laptop's Tailscale IP:**
-Since you already know your PC's IP (`100.117.73.75`), run this on your laptop to get its specific IP:
+   Since you already know your PC's IP (`100.117.73.75`), run this on your laptop to get its specific IP:
+
 ```bash
 tailscale ip -4
 ```
+
 *(Note this IP down for the PC's configuration step).*
 
 ---
@@ -32,20 +35,25 @@ tailscale ip -4
 To make your Fish aliases completely seamless, set up SSH keys so you don't have to type your password every time you connect.
 
 1. **Generate keys (Run on BOTH PC and Laptop):**
+
 ```bash
 ssh-keygen -t ed25519
 ```
+
 *(Press Enter for all prompts to accept the defaults and skip the passphrase).*
 
 2. **Send Laptop's key to the PC (Run on Laptop):**
+
 ```bash
-ssh-copy-id <your_username>@100.117.73.75
+ssh-copy-id void@100.117.73.75
 ```
+
 *(It will ask for your PC's user password once).*
 
 3. **Send PC's key to the Laptop (Run on PC):**
+
 ```bash
-ssh-copy-id <your_username>@<LAPTOP_TAILSCALE_IP>
+ssh-copy-id void@<LAPTOP_TAILSCALE_IP>
 ```
 
 ---
@@ -62,16 +70,16 @@ Open your Fish terminal and paste this code. Replace `<your_username>` with your
 function sshpc
     # Ping the PC's Tailscale IP once to see if it is online
     ping -c 1 -W 1 100.117.73.75 > /dev/null
-    
+  
     if test $status -ne 0
         echo "PC is offline. Sending Wake-on-LAN via voidphone..."
         wakepc
         echo "Waiting 30 seconds for PC to boot and connect to Tailscale..."
         sleep 30
     end
-    
+  
     echo "Connecting to PC..."
-    ssh <your_username>@100.117.73.75
+    ssh void@100.117.73.75
 end
 funcsave sshpc
 ```
@@ -83,7 +91,7 @@ Open your Fish terminal and paste this code. Replace `<your_username>` and `<LAP
 ```fish
 function sshlaptop
     echo "Connecting to Laptop..."
-    ssh <your_username>@<LAPTOP_TAILSCALE_IP>
+    ssh void@<LAPTOP_TAILSCALE_IP>
 end
 funcsave sshlaptop
 ```
@@ -97,23 +105,26 @@ If your Moonlight stream crashes on your laptop, the automated "Undo Command" in
 You can instantly recover your PC remotely by sending these commands from your laptop's terminal:
 
 **1. Wake Up Both Physical Monitors:**
+
 ```bash
-ssh <your_username>@100.117.73.75 "ddcutil -d 1 setvcp 0xd6 0x01; ddcutil -d 2 setvcp 0xd6 0x01"
+ssh void@100.117.73.75 "ddcutil -d 1 setvcp 0xd6 0x01; ddcutil -d 2 setvcp 0xd6 0x01"
 ```
 
 **2. Restart the Sunshine Service:**
+
 ```bash
-ssh <your_username>@100.117.73.75 "systemctl --user restart sunshine"
+ssh void@100.117.73.75 "systemctl --user restart sunshine"
 ```
 
 **(Highly Recommended) Create a `fixstream` Alias:**
 Bundle these commands into a single Fish alias on your laptop for instant one-click recovery.
+
 ```fish
 function fixstream
     echo "Waking monitors..."
-    ssh <your_username>@100.117.73.75 "ddcutil -d 1 setvcp 0xd6 0x01; ddcutil -d 2 setvcp 0xd6 0x01"
+    ssh void@100.117.73.75 "ddcutil -d 1 setvcp 0xd6 0x01; ddcutil -d 2 setvcp 0xd6 0x01"
     echo "Restarting Sunshine..."
-    ssh <your_username>@100.117.73.75 "systemctl --user restart sunshine"
+    ssh void@100.117.73.75 "systemctl --user restart sunshine"
     echo "Recovery complete."
 end
 funcsave fixstream
