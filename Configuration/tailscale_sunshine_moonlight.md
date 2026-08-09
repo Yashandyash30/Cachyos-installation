@@ -137,7 +137,7 @@ If a Moonlight stream crashes, the exit script won't run, leaving your physical 
 
 **1. Open your Niri configuration:**
 ```bash
-nano ~/.config/niri/dms/binds.kdl
+nano ~/.config/niri/config.kdl
 ```
 
 **2. Add this command to your binds section:**
@@ -177,3 +177,32 @@ To add another normal Desktop entry without privacy safeguards:
 * Enter **Desktop** in the **Application Name** box.
 * Click on **Find Cover** in the Image Section to choose an appropriate icon.
 * Click **Save** at the bottom to apply changes.
+
+---
+
+## Phase 8: Fix Moonlight Cursor Boundaries (Input Mapping)
+
+When you disconnect a physical monitor, Niri dynamically recalculates your desktop width, which can cause the absolute mouse in Moonlight (used by phones and tablets) to hit an invisible wall because it thinks the desktop is wider than your stream. 
+
+To fix this without turning off your monitors (which causes pipeline crashes), you must tell Niri to permanently map Sunshine's virtual mouse to the virtual output.
+
+**1. Open your Niri config file:**
+```bash
+nano ~/.config/niri/config.kdl
+```
+
+**2. Add this specific mapping to your `input` section:**
+*(Add this anywhere inside the `input { ... }` block)*
+
+```kdl
+    // Map all absolute touch/tablet inputs (used by Sunshine/Moonlight on mobile)
+    // directly to the virtual output to prevent boundary clipping.
+    touch {
+        map-to-output "sunshine"
+    }
+    tablet {
+        map-to-output "sunshine"
+    }
+```
+
+Save and exit. When you start your next stream, your cursor will perfectly map to the exact edges of your screen, no matter how many physical monitors are currently plugged in!

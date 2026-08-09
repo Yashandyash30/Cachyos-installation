@@ -16,6 +16,17 @@ gestures {
 // Find the full list of options on the wiki:
 // https://github.com/YaLTeR/niri/wiki/Configuration:-Input
 input {
+
+    // Map all absolute touch/tablet inputs (used by Sunshine/Moonlight on mobile)
+    // directly to the virtual output to prevent boundary clipping.
+    touch {
+        map-to-output "sunshine"
+    }
+    tablet {
+        map-to-output "sunshine"
+    }
+
+
     keyboard {
         xkb
 
