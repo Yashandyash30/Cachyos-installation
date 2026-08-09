@@ -15,7 +15,7 @@ By default, CachyOS might not have the SSH daemon running. You need to enable it
 1. **Install and start OpenSSH (Run on BOTH PC and Laptop):**
 
 ```bash
-sudo pacman -S openssh
+sudo pacman -S openssh jq
 sudo systemctl enable --now sshd
 ```
 
@@ -94,6 +94,20 @@ function sshlaptop
     ssh void@<LAPTOP_TAILSCALE_IP>
 end
 funcsave sshlaptop
+```
+
+### Universal Utilities (For Both PC and Laptop)
+
+Check your phone's current battery level and charging status directly from your computer's terminal using the official Termux API:
+
+*(Note: This requires you to have installed `pkg install termux-api` in Termux and the **Termux:API** app from F-Droid).*
+
+```fish
+function phonebattery
+    echo "Querying voidphone..."
+    ssh -p 8022 u0_a183@100.103.187.97 "termux-battery-status" | jq -r '"Battery Level: \(.percentage)%\nStatus: \(.status)"'
+end
+funcsave phonebattery
 ```
 
 ---

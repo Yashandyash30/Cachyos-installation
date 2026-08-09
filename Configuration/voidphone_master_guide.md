@@ -11,8 +11,10 @@ Download and install **Termux** (from F-Droid). Open Termux and install the esse
 
 ```bash
 pkg update && pkg upgrade -y
-pkg install openssh wol fish sudo arp-scan proot-distro -y
+pkg install openssh wol fish sudo arp-scan proot-distro termux-api -y
 ```
+
+*(Note: To use API features like checking your battery, you must also install the **Termux:API** app from F-Droid).*
 
 Set a password for your SSH access:
 
@@ -91,29 +93,32 @@ exit
 
 ---
 
-## Phase 3: The Unified Auto-Boot Script
+## Phase 3: The Unified Auto-Boot Script (Magisk)
 
-We need to tell the **Termux:Boot** app to automatically wake up the CPU, start your SSH server, and launch the Ubuntu container silently in the background whenever the phone restarts.
+Since you are rooted, the most robust way to start your services is via a Magisk boot script. This ensures Uptime Kuma and SSH run as independent background processes. **Even if you accidentally swipe Termux away, your services will never be killed.**
 
-### 1. Create the Script
-Install **Termux:Boot** (from F-Droid) and open it once from your app drawer so Android registers it. Run this inside Termux:
+*(Note: You do not need the Termux:Boot app for this. You can uninstall it).*
+
+### 1. Create the Magisk Script
+Open Termux (make sure you are at the native Termux `~ $` prompt, not inside Ubuntu) and run this:
 
 ```fish
-mkdir -p ~/.termux/boot/
-cat << 'EOF' > ~/.termux/boot/start-services.sh
-#!/data/data/com.termux/files/usr/bin/sh
-termux-wake-lock
-sshd
-nohup proot-distro login ubuntu -- bash -c "cd ~/uptime-kuma && node server/server.js --port=3001" > ~/uptime-kuma-server.log 2>&1 &
-EOF
+echo '#!/system/bin/sh
+until [ "$(getprop sys.boot_completed)" = "1" ]; do sleep 2; done
+
+# Load Termux environment and start services as your Termux user
+su u0_a183 -c "source /data/data/com.termux/files/usr/etc/profile && sshd"
+su u0_a183 -c "source /data/data/com.termux/files/usr/etc/profile && nohup proot-distro login ubuntu -- bash -c \"cd ~/uptime-kuma && node server/server.js --port=3001\" > /data/data/com.termux/files/home/uptime-kuma-server.log 2>&1 &"' > ~/termux_services.sh
 ```
 
-### 2. Make it Executable & Start
+### 2. Install to Magisk & Enable
 ```fish
-chmod +x ~/.termux/boot/start-services.sh
-~/.termux/boot/start-services.sh
+sudo mv ~/termux_services.sh /data/adb/service.d/
+sudo chmod +x /data/adb/service.d/termux_services.sh
 ```
-*(Click on **wakelock** when expanding the Termux notification from the Android status bar).*
+*(If Magisk asks for root permission, click Grant).*
+
+Your phone will now silently boot all services directly from Android's init system every time you restart!
 
 ---
 
@@ -228,3 +233,15 @@ funcsave wakepc
 * **Remote PC Wakeup:** From the laptop, type `wakepc`. Wait 15–30s for the PC to boot and connect to Tailscale, then SSH into it via `100.117.73.75`.
 * **Dashboard Logs:** To view live Uptime Kuma logs, run `cat ~/uptime-kuma-server.log` on the phone.
 * **Verify Container:** Run `pgrep -a proot` on the phone to ensure the container is active.
+
+---
+
+## Recovery & Troubleshooting
+
+### Accidentally Closed Termux?
+Because you are using the Magisk Boot Script (Phase 3), **you do not need to worry about this!** Android's app-killer cannot touch processes started by Magisk. You can freely swipe Termux away from your recent apps, and Uptime Kuma will remain 100% online.
+
+If for some reason you ever need to manually restart the services without rebooting your phone, you can run:
+```bash
+sudo /data/adb/service.d/termux_services.sh
+```
