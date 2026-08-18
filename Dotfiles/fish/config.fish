@@ -129,8 +129,8 @@ alias daomatch="distrobox enter astro-box -- bash -c '~/dao2/ndaomatch'"
 alias daomaster="distrobox enter astro-box -- bash -c '~/dao2/ndaomaster'"
 
 # MESA alias
-alias mesa="bash --rcfile ~/.bashrc_mesa"
-
+alias mesa26="bash --rcfile ~/.bashrc_mesa_26"
+alias mesa23="bash --rcfile ~/.bashrc_mesa_23"
 
 # =========================================================================
 # SYSTEM UTILITIES & ALIASES
