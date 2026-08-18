@@ -1,6 +1,7 @@
 # This file contains fish universal variable definitions.
 # VERSION: 3.0
 SETUVAR --export BROWSER:/usr/bin/zen\x2dbrowser
+SETUVAR --export _JAVA_AWT_WM_NONREPARENTING:1
 SETUVAR __done_min_cmd_duration:10000
 SETUVAR __done_notification_urgency_level:low
 SETUVAR __fish_initialized:4300
