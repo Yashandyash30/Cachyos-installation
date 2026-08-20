@@ -310,3 +310,195 @@ Once the `pyraf>` prompt appears in your terminal, type:
 ```
 
 Because of this hybrid setup, PyRAF will think it's running natively on a local X11 machine, and Xpra will flawlessly beam the DS9 GUI window out to your Wayland desktop!
+
+---
+
+## Part 4: Windows Laptop Configuration (Targeting the PC)
+
+This section covers replicating the full remote environment workflow from a **Windows laptop** that only has **Tailscale** configured. We will set up SSH, network shares, and PowerShell functions equivalent to every Fish function in Part 1.
+
+> **Note:** Zellij does not need to be installed on Windows. It runs on the remote Linux PC — your Windows laptop only needs to SSH in and attach to the session.
+
+### 4.1 Prerequisites
+
+#### Enable OpenSSH Client
+
+OpenSSH is built into Windows 10 (1809+) and Windows 11. Verify it's available by opening PowerShell and running:
+
+```powershell
+ssh -V
+```
+
+If this returns a version, you're good. If not, enable it:
+
+1. Open **Settings → Apps → Optional Features → Add a feature**.
+2. Search for **OpenSSH Client** and install it.
+
+#### Set Up SSH Key Authentication
+
+To avoid typing your password every time:
+
+```powershell
+# Generate a key pair (if you don't already have one)
+ssh-keygen -t ed25519
+
+# Copy your public key to the PC
+type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh void@100.117.73.75 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+```
+
+#### Install Xpra (For GUI Forwarding)
+
+Download and install the Xpra Windows client from [xpra.org](https://xpra.org/). After installation, ensure `xpra` is in your system PATH, or note the install path (typically `C:\Program Files\Xpra\`).
+
+### 4.2 Map Network Shares as Drive Letters
+
+Open PowerShell **as Administrator** and map the PC's SMB shares to drive letters. These will persist across reboots:
+
+```powershell
+# Map PC Home directory to Z:
+net use Z: \\100.117.73.75\Home /persistent:yes /user:void
+
+# Map PC Storage to Y:
+net use Y: \\100.117.73.75\Storage /persistent:yes /user:void
+```
+
+> **Tip:** If the PC is behind a firewall, ensure SMB (port 445) is allowed over Tailscale, or use `sshfs-win` as an alternative to native SMB shares.
+
+### 4.3 PowerShell Functions
+
+Add these functions to your PowerShell profile so they are available in every terminal session.
+
+Open your profile for editing:
+
+```powershell
+notepad $PROFILE
+```
+
+> If the file doesn't exist, PowerShell will prompt you to create it. Say **Yes**.
+
+Paste the following entire block and save:
+
+```powershell
+function Get-PCTargetDir {
+    $cwd = (Get-Location).Path
+
+    if ($cwd -match '^Z:\\') {
+        # Z: is mapped to PC's /home/void
+        $target = $cwd -replace '^Z:\\', '/home/void/'
+        $target = $target -replace '\\', '/'
+    }
+    elseif ($cwd -match '^Y:\\') {
+        # Y: is mapped to PC's /mnt/Storage
+        $target = $cwd -replace '^Y:\\', '/mnt/Storage/'
+        $target = $target -replace '\\', '/'
+    }
+    else {
+        $target = "/home/void"
+    }
+
+    # Clean up any trailing or double slashes
+    $target = $target -replace '/$', ''
+    $target = $target -replace '//', '/'
+    return $target
+}
+
+function jumppc {
+    $target = Get-PCTargetDir
+
+    Write-Host "Jumping to PC at $target..." -ForegroundColor Cyan
+    ssh -t void@100.117.73.75 "cd '$target' && exec fish"
+}
+
+function jumppcz {
+    $target = Get-PCTargetDir
+
+    Write-Host "Jumping to Zellij session on PC at $target..." -ForegroundColor Cyan
+    ssh -t void@100.117.73.75 "cd '$target' && exec zellij attach -c astro"
+}
+
+function guipc {
+    param([string]$AppCmd)
+
+    if (-not $AppCmd) {
+        Write-Host "Please specify a tool (e.g., guipc pyraf)" -ForegroundColor Red
+        return
+    }
+
+    $target = Get-PCTargetDir
+
+    Write-Host "Starting Xpra Graphics Tunnel..." -ForegroundColor Cyan
+
+    # 1. Start the invisible X11 display on the PC
+    ssh void@100.117.73.75 "xpra start :100 2>/dev/null"
+
+    # 2. Attach the Windows laptop to that display in the background
+    Start-Process -NoNewWindow -FilePath "xpra" -ArgumentList "attach", "ssh://void@100.117.73.75/100"
+
+    Write-Host "Launching $AppCmd on Host PC at $target..." -ForegroundColor Cyan
+
+    # 3. SSH in, point graphics to :100, and launch the app
+    ssh -t void@100.117.73.75 "cd '$target' && export DISPLAY=:100 && exec fish -i -C '$AppCmd'"
+
+    # 4. Clean up Xpra when done
+    Get-Process -Name "xpra" -ErrorAction SilentlyContinue | Stop-Process
+}
+
+function guipcz {
+    $target = Get-PCTargetDir
+
+    Write-Host "Starting Xpra Graphics Tunnel..." -ForegroundColor Cyan
+
+    ssh void@100.117.73.75 "xpra start :100 2>/dev/null"
+
+    Start-Process -NoNewWindow -FilePath "xpra" -ArgumentList "attach", "ssh://void@100.117.73.75/100"
+
+    Write-Host "Jumping to Zellij (GUI-enabled) session on PC at $target..." -ForegroundColor Cyan
+    ssh -t void@100.117.73.75 "cd '$target' && export DISPLAY=:100 && exec zellij attach -c astro_gui"
+
+    Get-Process -Name "xpra" -ErrorAction SilentlyContinue | Stop-Process
+}
+
+function wakepc {
+    # Wake-on-LAN: Replace MAC_ADDRESS with your PC's actual MAC address
+    $mac = "XX:XX:XX:XX:XX:XX"
+    $macBytes = $mac -split '[:-]' | ForEach-Object { [byte]('0x' + $_) }
+    $magicPacket = [byte[]](,0xFF * 6) + ($macBytes * 16)
+    $udpClient = New-Object System.Net.Sockets.UdpClient
+    $udpClient.Connect(([System.Net.IPAddress]::Broadcast), 9)
+    $udpClient.Send($magicPacket, $magicPacket.Length) | Out-Null
+    $udpClient.Close()
+    Write-Host "Wake-on-LAN packet sent!" -ForegroundColor Green
+}
+```
+
+After saving, reload your profile:
+
+```powershell
+. $PROFILE
+```
+
+### 4.4 Usage (Identical Workflow)
+
+The commands work exactly like their Linux counterparts. Open PowerShell, navigate into a mapped network drive, and run:
+
+| Command | What it does |
+|---|---|
+| `jumppc` | SSH into the PC, landing in the translated folder |
+| `jumppcz` | Attach to a persistent Zellij session on the PC |
+| `guipc pyraf` | Launch a specific GUI app on the PC with Xpra forwarding |
+| `guipcz` | Persistent Zellij session with GUI forwarding enabled |
+| `wakepc` | Send a Wake-on-LAN magic packet to boot the PC |
+
+**Example — Resume a MESA simulation with plots:**
+
+```powershell
+# Navigate to the PC's project folder via the mapped drive
+cd Z:\Research\MESA_models\my_star
+
+# Attach to the GUI-enabled persistent session
+guipcz
+```
+
+You'll land right back in your running Zellij session with MESA still going, and any `pgstar` plot windows will reappear on your Windows desktop via Xpra.
+
+> **Important:** Replace `XX:XX:XX:XX:XX:XX` in the `wakepc` function with your PC's actual MAC address. You can find it by running `ip link` on your PC.
