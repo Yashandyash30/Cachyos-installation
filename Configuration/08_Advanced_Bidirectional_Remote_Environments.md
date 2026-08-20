@@ -473,8 +473,12 @@ function jumppc {
 function jumppcz {
     $target = Get-PCTargetDir
 
-    Write-Host "Jumping to Zellij session on PC at $target..." -ForegroundColor Cyan
-    ssh -t void@100.117.73.75 "cd '$target' && exec zellij attach -c astro"
+    # Strip the base path and convert the folder name into a safe Zellij session name
+    $sessionName = ($target -replace '^/home/void/|^/mnt/Storage/', '') -replace '[^a-zA-Z0-9]', '_'
+    if ([string]::IsNullOrWhiteSpace($sessionName)) { $sessionName = 'root_workspace' }
+
+    Write-Host "Jumping to Zellij session [$sessionName] on PC at $target..." -ForegroundColor Cyan
+    ssh -t void@100.117.73.75 "cd '$target' && exec zellij attach -c '$sessionName'"
 }
 
 function guipc {
@@ -486,14 +490,13 @@ function guipc {
     }
 
     $target = Get-PCTargetDir
-
     Write-Host "Starting Xpra Graphics Tunnel..." -ForegroundColor Cyan
 
     # 1. Start the invisible X11 display on the PC
     ssh void@100.117.73.75 "xpra start :100 2>/dev/null"
 
-    # 2. Attach the Windows laptop using the explicit file path
-    Start-Process -NoNewWindow -FilePath "C:\Program Files\Xpra\Xpra.exe" -ArgumentList "attach", "ssh://void@100.117.73.75/100"
+    # 2. Attach using native Windows SSH (bypasses Xpra's MSYS2 SSH)
+    Start-Process -NoNewWindow -FilePath "C:\Program Files\Xpra\Xpra.exe" -ArgumentList "attach", "ssh://void@100.117.73.75/100", "--ssh=`"C:\Windows\System32\OpenSSH\ssh.exe -o StrictHostKeyChecking=no`""
 
     Write-Host "Launching $AppCmd on Host PC at $target..." -ForegroundColor Cyan
 
@@ -507,15 +510,20 @@ function guipc {
 function guipcz {
     $target = Get-PCTargetDir
 
+    # Strip the base path and convert the folder name into a safe Zellij session name
+    $sessionName = ($target -replace '^/home/void/|^/mnt/Storage/', '') -replace '[^a-zA-Z0-9]', '_'
+    if ([string]::IsNullOrWhiteSpace($sessionName)) { $sessionName = 'root_workspace' }
+    $sessionName = $sessionName + "_gui"
+
     Write-Host "Starting Xpra Graphics Tunnel..." -ForegroundColor Cyan
 
     ssh void@100.117.73.75 "xpra start :100 2>/dev/null"
 
-    # Attach using explicit path
-    Start-Process -NoNewWindow -FilePath "C:\Program Files\Xpra\Xpra.exe" -ArgumentList "attach", "ssh://void@100.117.73.75/100"
+    # Attach using native Windows SSH (bypasses Xpra's MSYS2 SSH)
+    Start-Process -NoNewWindow -FilePath "C:\Program Files\Xpra\Xpra.exe" -ArgumentList "attach", "ssh://void@100.117.73.75/100", "--ssh=`"C:\Windows\System32\OpenSSH\ssh.exe -o StrictHostKeyChecking=no`""
 
-    Write-Host "Jumping to Zellij (GUI-enabled) session on PC at $target..." -ForegroundColor Cyan
-    ssh -t void@100.117.73.75 "cd '$target' && export DISPLAY=:100 && exec zellij attach -c astro_gui"
+    Write-Host "Jumping to Zellij GUI session [$sessionName] on PC at $target..." -ForegroundColor Cyan
+    ssh -t void@100.117.73.75 "cd '$target' && export DISPLAY=:100 && exec zellij attach -c '$sessionName'"
 
     Get-Process -Name "Xpra" -ErrorAction SilentlyContinue | Stop-Process
 }
@@ -543,10 +551,13 @@ The commands work exactly like their Linux counterparts. Open PowerShell, naviga
 | Command | What it does |
 |---|---|
 | `jumppc` | SSH into the PC, landing in the translated folder |
-| `jumppcz` | Attach to a persistent Zellij session on the PC |
+| `jumppcz` | Attach to a **folder-specific** persistent Zellij session on the PC |
 | `guipc pyraf` | Launch a specific GUI app on the PC with Xpra forwarding |
-| `guipcz` | Persistent Zellij session with GUI forwarding enabled |
+| `guipcz` | Folder-specific persistent Zellij session with GUI forwarding enabled |
 | `wakepc` | Send a Wake-on-LAN magic packet to boot the PC |
+
+> [!NOTE]
+> **Dynamic session names:** `jumppcz` and `guipcz` automatically name each Zellij session after the folder you launch from. Opening Zellij in `Z:\Research\MESA_models` creates a session called `Research_MESA_models`, while `Z:\Downloads` creates `Downloads`. Each project gets its own independent, persistent workspace.
 
 **Example — Resume a MESA simulation with plots:**
 
@@ -554,18 +565,49 @@ The commands work exactly like their Linux counterparts. Open PowerShell, naviga
 # Navigate to the PC's project folder via the mapped drive
 cd Z:\Research\MESA_models\my_star
 
-# Attach to the GUI-enabled persistent session
+# Attach to the GUI-enabled persistent session (auto-named "Research_MESA_models_my_star_gui")
 guipcz
 ```
 
 You'll land right back in your running Zellij session with MESA still going, and any `pgstar` plot windows will reappear on your Windows desktop via Xpra.
+
+### 4.5 Managing Zellij Sessions
+
+Because the functions use `zellij attach -c`, simply closing the PowerShell window or pressing `Ctrl+C` will only **detach** you from the session — it keeps running in the background on your CachyOS PC. This is intentional: your work is never lost if you close your laptop lid or lose connectivity.
+
+To actually kill a session and free up memory, use one of these methods:
+
+#### Method 1: Quick Kill (Inside the Session)
+
+Press **`Ctrl + q`** while inside the Zellij session. This is Zellij's hard-quit command — it immediately terminates the workspace and all its panes.
+
+#### Method 2: Traditional Exit (Inside the Session)
+
+Type **`exit`** (or press **`Ctrl + d`**) in each terminal pane. Once the final pane closes, the session destroys itself.
+
+#### Method 3: Remote Management (Outside the Session)
+
+If you detached from a session and want to clean it up without re-entering it, manage sessions via SSH:
+
+```powershell
+# List all running Zellij sessions on the PC
+ssh void@100.117.73.75 "zellij list-sessions"
+
+# Kill a specific session by name
+ssh void@100.117.73.75 "zellij kill-session Research_MESA_models_my_star"
+
+# Nuclear option: kill ALL Zellij sessions on the PC
+ssh void@100.117.73.75 "zellij kill-all-sessions"
+```
+
+> **Tip:** You can also run these `zellij kill` commands from inside a regular `jumppc` shell on the PC.
 
 > **Important:** Replace `XX:XX:XX:XX:XX:XX` in the `wakepc` function with your PC's actual MAC address. You can find it by running `ip link` on your PC.
 
 > [!NOTE]
 > If you installed Xpra in a custom location instead of `C:\Program Files\Xpra\`, update the `-FilePath` in the `guipc` and `guipcz` functions to match your actual install path.
 
-### 4.5 Troubleshooting
+### 4.6 Troubleshooting
 
 #### Xpra: "Command Not Found" or "Not Recognized"
 
@@ -578,6 +620,26 @@ Get-ChildItem "C:\Program Files\Xpra\Xpra.exe"
 ```
 
 If it's installed elsewhere, update the `-FilePath` parameter in both functions accordingly.
+
+---
+
+#### Xpra: "Permission Denied" or "Could not create directory /home/User/.ssh"
+
+Xpra for Windows is compiled using **MSYS2**, a Linux-compatibility layer. When Xpra internally calls `ssh` to tunnel to the remote display, it triggers its own bundled Linux-style SSH — which looks for your keys in a non-existent `/home/YourUser/.ssh/` directory instead of your actual `C:\Users\YourUser\.ssh\` folder. Because it can't find your `id_ed25519` key, it throws "Permission denied".
+
+The `guipc` and `guipcz` functions above already include the fix: the `--ssh` flag forces Xpra to use Microsoft's native OpenSSH client (`C:\Windows\System32\OpenSSH\ssh.exe`) instead of its bundled MSYS2 SSH. This ensures it reads your real Windows SSH keys.
+
+To verify the fix manually, run this one-liner:
+
+```powershell
+& "C:\Program Files\Xpra\Xpra_cmd.exe" attach ssh://void@100.117.73.75/100 --ssh="C:\Windows\System32\OpenSSH\ssh.exe -o StrictHostKeyChecking=no"
+```
+
+If it connects without red errors, the fix is working. Leave it running, open a new PowerShell tab, and test with:
+
+```powershell
+ssh void@100.117.73.75 "export DISPLAY=:100 && alacritty"
+```
 
 ---
 
