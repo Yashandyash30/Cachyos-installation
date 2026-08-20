@@ -190,10 +190,11 @@ Icon=vscode
 Exec=bash -c 'target="%f"; if [[ "$target" == /mnt/PC_Home* ]]; then target="${target/\/mnt\/PC_Home/\/home\/void}"; elif [[ "$target" == /mnt/PC_Storage* ]]; then target="${target/\/mnt\/PC_Storage/\/mnt\/Storage}"; elif [[ "$target" == /home/void* ]]; then target="${target/\/home\/void/\/mnt\/Laptop_Home}"; else target="/home/void"; fi; antigravity-ide --folder-uri "vscode-remote://ssh-remote+void@100.117.73.75$target"'
 ```
 
-Make it executable:
+Make it executable and register it with the system so it populates instantly:
 
 ```bash
 chmod +x ~/.local/share/kio/servicemenus/antiremote.desktop
+kbuildsycoca6
 ```
 
 ### 2.2 On your PC (To open the Laptop)
@@ -220,10 +221,11 @@ Icon=vscode
 Exec=bash -c 'target="%f"; if [[ "$target" == /mnt/Laptop_Home* ]]; then target="${target/\/mnt\/Laptop_Home/\/home\/void}"; elif [[ "$target" == /mnt/Storage* ]]; then target="${target/\/mnt\/Storage/\/mnt\/PC_Storage}"; elif [[ "$target" == /home/void* ]]; then target="${target/\/home\/void/\/mnt\/PC_Home}"; else target="/home/void"; fi; antigravity-ide --folder-uri "vscode-remote://ssh-remote+void@<LAPTOP_TAILSCALE_IP>$target"'
 ```
 
-Make it executable:
+Make it executable and register it with the system so it populates instantly:
 
 ```bash
 chmod +x ~/.local/share/kio/servicemenus/antiremote_laptop.desktop
+kbuildsycoca6
 ```
 
 ---
