@@ -332,6 +332,7 @@ ssh -V
 If this returns a version, you're good. If not, enable it via **one** of these methods:
 
 **Method A (GUI):**
+
 1. Open **Settings → Apps → Optional Features → Add a feature**.
 2. Search for **OpenSSH Client** and install it.
 
@@ -548,13 +549,13 @@ function wakepc {
 
 The commands work exactly like their Linux counterparts. Open PowerShell, navigate into a mapped network drive, and run:
 
-| Command | What it does |
-|---|---|
-| `jumppc` | SSH into the PC, landing in the translated folder |
-| `jumppcz` | Attach to a **folder-specific** persistent Zellij session on the PC |
-| `guipc pyraf` | Launch a specific GUI app on the PC with Xpra forwarding |
-| `guipcz` | Folder-specific persistent Zellij session with GUI forwarding enabled |
-| `wakepc` | Send a Wake-on-LAN magic packet to boot the PC |
+| Command         | What it does                                                             |
+| --------------- | ------------------------------------------------------------------------ |
+| `jumppc`      | SSH into the PC, landing in the translated folder                        |
+| `jumppcz`     | Attach to a**folder-specific** persistent Zellij session on the PC |
+| `guipc pyraf` | Launch a specific GUI app on the PC with Xpra forwarding                 |
+| `guipcz`      | Folder-specific persistent Zellij session with GUI forwarding enabled    |
+| `wakepc`      | Send a Wake-on-LAN magic packet to boot the PC                           |
 
 > [!NOTE]
 > **Dynamic session names:** `jumppcz` and `guipcz` automatically name each Zellij session after the folder you launch from. Opening Zellij in `Z:\Research\MESA_models` creates a session called `Research_MESA_models`, while `Z:\Downloads` creates `Downloads`. Each project gets its own independent, persistent workspace.
@@ -598,9 +599,18 @@ ssh void@100.117.73.75 "zellij kill-session Research_MESA_models_my_star"
 
 # Nuclear option: kill ALL Zellij sessions on the PC
 ssh void@100.117.73.75 "zellij kill-all-sessions"
+
+ssh void@100.117.73.75 "zellij delete-session astro"
+
+ssh void@100.117.73.75 "zellij delete-all-sessions"
 ```
 
 > **Tip:** You can also run these `zellij kill` commands from inside a regular `jumppc` shell on the PC.
+
+> **Important:** Replace `XX:XX:XX:XX:XX:XX` in the `wakepc` function with your PC's actual MAC address. You can find it by running `ip link` on your PC.
+
+> [!NOTE]
+> If you installed Xpra in a custom location instead of `C:\Program Files\Xpra\`, update the `-FilePath` in the `guipc` and `guipcz` functions to match your actual install path.
 
 ### 4.6 File Explorer Context Menu (Antigravity IDE)
 
@@ -753,10 +763,10 @@ If you run `. $PROFILE` and see red errors about `Spacebar`, `Enter`, or `Ctrl+C
 
 This usually happens because Windows has **two separate versions of PowerShell** with independent `$PROFILE` files:
 
-| Version | Typical Profile Path |
-|---|---|
+| Version              | Typical Profile Path                                               |
+| -------------------- | ------------------------------------------------------------------ |
 | Windows PowerShell 5 | `~\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1` |
-| PowerShell 7 | `~\Documents\PowerShell\Microsoft.PowerShell_profile.ps1` |
+| PowerShell 7         | `~\Documents\PowerShell\Microsoft.PowerShell_profile.ps1`        |
 
 If the functions worked once (via `. $PROFILE`) but disappeared after restarting, you likely saved them into the wrong version's profile.
 
