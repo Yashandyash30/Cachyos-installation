@@ -8,7 +8,6 @@ To create a new one, you always run:
 
 ```bash
 nano ~/.local/share/kio/servicemenus/choose-a-name.desktop
-
 ```
 
 Inside that file, you use this exact master template. You only ever need to change the **`Name`**, the **`Icon`**, and the **`Exec`** lines:
@@ -24,7 +23,6 @@ Name=Open in [App Name]
 Icon=[system-icon-name]
 Path=%f
 Exec=[app-launch-command] "%f"
-
 ```
 
 ---
@@ -47,7 +45,6 @@ Name=Open in VS Code
 Icon=vscode
 Path=%f
 Exec=code "%f"
-
 ```
 
 ---
@@ -75,7 +72,6 @@ Icon=nvim
 Path=%f
 # Launch Konsole, set the path, and execute nvim
 Exec=konsole --workdir "%f" -e nvim .
-
 ```
 
 *(If you use a different terminal in your Niri setup, like Alacritty, the line would be: `Exec=alacritty --working-directory "%f" -e nvim .`)*
@@ -90,14 +86,12 @@ No matter what app you are adding, you must always perform these two steps after
 
 ```bash
 chmod +x ~/.local/share/kio/servicemenus/your-file-name.desktop
-
 ```
 
 **2. Restart the file manager:**
 
 ```bash
 killall dolphin
-
 ```
 
 Whenever you install a new tool that you want quick access to, just copy that blueprint, swap out the execution command, run the permissions check, and it will permanently live in your right-click menu!

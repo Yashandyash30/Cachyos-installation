@@ -10,6 +10,5 @@ output "HP Inc. HP 324pv 1H354213BG" {
     mode "1920x1080@100.000"
     scale 1
     position x=1920 y=0
-    focus-at-startup
 }
 

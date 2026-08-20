@@ -368,3 +368,22 @@ You have two options to clean this up visually:
 ```
 
 *(Remember to run `sudo systemctl daemon-reload` and restart `local-fs.target` if you edit the fstab file).*
+
+---
+
+### Part 8: Global Remote Access Anywhere via Tailscale
+
+If you want your KSMBD network drives to connect instantly whether you are at home, at the institute, or on mobile data, use Tailscale.
+
+1. Ensure Tailscale is installed and running (`sudo tailscale up`).
+2. Run `tailscale ip -4` on the Server machine to get its global IP (e.g., `100.117.73.75`).
+3. In the Client's `/etc/fstab`, use the Tailscale IP instead of a local IP or `.local` hostname:
+   `//100.117.73.75/ShareName  /mnt/Remote_Folder  cifs  credentials=/etc/samba/credentials,uid=1000,gid=1000,users,noauto,nofail,_netdev 0 0`
+4. Run `sudo systemctl daemon-reload` and `sudo systemctl restart local-fs.target`.
+
+**Alternative Zero-Config Method (SFTP):**
+If you already have SSH access set up over Tailscale, you do not even need `fstab` or KSMBD!
+1. Open Dolphin.
+2. Click the address bar at the top (or press `Ctrl+L`).
+3. Type `sftp://void@100.117.73.75/` (using the target machine's Tailscale IP).
+4. You can right-click any empty space in Dolphin's left sidebar and select **"Add to Places"** to save it permanently.
