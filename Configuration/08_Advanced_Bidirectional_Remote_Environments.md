@@ -600,6 +600,7 @@ ssh void@100.117.73.75 "zellij kill-session Research_MESA_models_my_star"
 # Nuclear option: kill ALL Zellij sessions on the PC
 ssh void@100.117.73.75 "zellij kill-all-sessions"
 
+
 ssh void@100.117.73.75 "zellij delete-session astro"
 
 ssh void@100.117.73.75 "zellij delete-all-sessions"
