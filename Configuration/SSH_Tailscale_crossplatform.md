@@ -160,11 +160,154 @@ funcsave checkmonitors
 
 ---
 
+## Phase 5: Windows Laptop Setup
+
+This section covers setting up SSH and PowerShell aliases on a **Windows laptop** so it participates in the same Tailscale mesh as your Linux machines.
+
+> **Prerequisite:** Install and sign into [Tailscale for Windows](https://tailscale.com/download/windows) first. Your PC's Tailscale IP (`100.117.73.75`) will work identically from Windows.
+
+### 5.1 Enable OpenSSH Client
+
+OpenSSH is built into Windows 10 (1809+) and Windows 11. Verify it by opening PowerShell and running:
+
+```powershell
+ssh -V
+```
+
+If this returns a version, skip ahead. If not, enable it via **one** of these methods:
+
+**Method A (GUI):**
+
+1. Open **Settings → Apps → Optional Features → Add a feature**.
+2. Search for **OpenSSH Client** and install it.
+
+**Method B (Terminal — faster):**
+Open PowerShell **as Administrator** and run:
+
+```powershell
+Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
+```
+
+It will show a loading bar and print `Online : True` when finished.
+
+After either method, **close the PowerShell window and open a new one** so the environment refreshes.
+
+### 5.2 Passwordless Login (SSH Keys)
+
+```powershell
+# Generate a key pair (if you don't already have one)
+ssh-keygen -t ed25519
+```
+
+*(Press Enter for all prompts to accept defaults and skip the passphrase).*
+
+Copy your public key to the PC:
+
+```powershell
+type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh void@100.117.73.75 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+```
+
+Copy your key to voidphone (for `phonebattery` and other phone aliases):
+
+```powershell
+type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh -p 8022 u0_a183@100.103.187.97 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+```
+
+### 5.3 PowerShell Aliases
+
+Add these functions to your PowerShell profile so they are available in every terminal session.
+
+Open your profile for editing:
+
+```powershell
+notepad $PROFILE
+```
+
+> If the file doesn't exist, PowerShell will prompt you to create it. Say **Yes**.
+
+Paste the following entire block and save:
+
+```powershell
+# ─── Wake-on-LAN ───────────────────────────────────────────────
+function wakepc {
+    # Replace XX:XX:XX:XX:XX:XX with your PC's actual MAC address
+    $mac = "XX:XX:XX:XX:XX:XX"
+    $macBytes = $mac -split '[:-]' | ForEach-Object { [byte]('0x' + $_) }
+    $magicPacket = [byte[]](,0xFF * 6) + ($macBytes * 16)
+    $udpClient = New-Object System.Net.Sockets.UdpClient
+    $udpClient.Connect(([System.Net.IPAddress]::Broadcast), 9)
+    $udpClient.Send($magicPacket, $magicPacket.Length) | Out-Null
+    $udpClient.Close()
+    Write-Host "Wake-on-LAN packet sent!" -ForegroundColor Green
+}
+
+# ─── SSH to PC (with auto-wake) ────────────────────────────────
+function sshpc {
+    $ping = Test-Connection -ComputerName 100.117.73.75 -Count 1 -Quiet
+    if (-not $ping) {
+        Write-Host "PC is offline. Sending Wake-on-LAN..." -ForegroundColor Yellow
+        wakepc
+        Write-Host "Waiting 30 seconds for PC to boot and connect to Tailscale..." -ForegroundColor Yellow
+        Start-Sleep -Seconds 30
+    }
+    Write-Host "Connecting to PC..." -ForegroundColor Cyan
+    ssh void@100.117.73.75
+}
+
+# ─── Phone Battery Check ───────────────────────────────────────
+function phonebattery {
+    Write-Host "Querying voidphone..." -ForegroundColor Cyan
+    $json = ssh -p 8022 u0_a183@100.103.187.97 "termux-battery-status"
+    $bat = $json | ConvertFrom-Json
+    Write-Host "Battery Level: $($bat.percentage)%"
+    Write-Host "Status: $($bat.status)"
+}
+
+# ─── Stream Recovery ───────────────────────────────────────────
+function fixstream {
+    Write-Host "Waking monitors..." -ForegroundColor Cyan
+    ssh void@100.117.73.75 "ddcutil -d 1 setvcp 0xd6 0x01 || true; ddcutil -d 2 setvcp 0xd6 0x01 || true"
+    Write-Host "Restarting Sunshine..." -ForegroundColor Cyan
+    ssh void@100.117.73.75 "systemctl --user restart sunshine"
+    Write-Host "Recovery complete." -ForegroundColor Green
+}
+
+function checkmonitors {
+    Write-Host "Querying physical monitor power states..." -ForegroundColor Cyan
+    ssh void@100.117.73.75 "ddcutil -d 1 getvcp d6 || true; ddcutil -d 2 getvcp d6 || true"
+}
+```
+
+> [!TIP]
+> **Do not reload with `. $PROFILE`** if you have Oh My Posh installed — it will throw harmless but confusing red errors about duplicate key bindings. Instead, simply **close the PowerShell window and open a new one** to load the profile cleanly.
+
+> [!IMPORTANT]
+> Replace `XX:XX:XX:XX:XX:XX` in the `wakepc` function with your PC's actual MAC address. Find it by running `ip link` on your CachyOS PC.
+
+> **Note:** For the full set of advanced functions (smart path translation, Zellij sessions, Xpra GUI forwarding, and network drive mapping), see the [Advanced Bidirectional Remote Environments](file:///home/void/Cachyos-installation/Configuration/08_Advanced_Bidirectional_Remote_Environments.md) guide (Part 4).
+
+---
+
 ## Your New Daily Workflow
 
-* **From your Laptop (Anywhere):** Type `sshpc`.
-  * If the PC is already on (locally or at home), you will instantly log in.
-  * If the PC is off, Fish will automatically trigger `voidphone` to wake it up, wait for CachyOS and Tailscale to launch, and then log you in.
-* **Stream Recovery:** Type `fixstream` from your laptop if Moonlight ever crashes and leaves your PC monitors turned off.
-* **From your PC:** Type `sshlaptop` to instantly drop into your laptop's terminal.
-* **X11 Forwarding (Optional):** If you ever need to launch a graphical application from one machine and display it on the other within your Niri/DMS environment, simply add `-Y` to your ssh commands (e.g., `ssh -Y <your_username>@100.117.73.75`).
+### From a Linux Laptop (Fish)
+
+* Type `sshpc` — auto-wakes the PC if needed, then connects.
+* Type `fixstream` — recovers crashed Moonlight streams.
+* Type `phonebattery` — checks voidphone battery level.
+
+### From a Windows Laptop (PowerShell)
+
+* Type `sshpc` — identical behavior: auto-wakes, waits, and connects.
+* Type `fixstream` — same stream recovery over Tailscale.
+* Type `phonebattery` — same phone battery check via Termux API.
+* Type `wakepc` — sends a standalone Wake-on-LAN packet.
+* Type `checkmonitors` — queries physical monitor power states.
+
+### From your PC (Fish)
+
+* Type `sshlaptop` — instantly drops into your laptop's terminal.
+
+### X11 Forwarding (Optional)
+
+If you ever need to launch a graphical application from one Linux machine and display it on the other within your Niri/DMS environment, add `-Y` to your ssh commands (e.g., `ssh -Y void@100.117.73.75`). For Windows GUI forwarding, see the Xpra setup in the [Advanced Remote Environments guide](file:///home/void/Cachyos-installation/Configuration/08_Advanced_Bidirectional_Remote_Environments.md).

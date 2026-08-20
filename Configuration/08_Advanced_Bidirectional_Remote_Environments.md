@@ -329,10 +329,22 @@ OpenSSH is built into Windows 10 (1809+) and Windows 11. Verify it's available b
 ssh -V
 ```
 
-If this returns a version, you're good. If not, enable it:
+If this returns a version, you're good. If not, enable it via **one** of these methods:
 
+**Method A (GUI):**
 1. Open **Settings → Apps → Optional Features → Add a feature**.
 2. Search for **OpenSSH Client** and install it.
+
+**Method B (Terminal — faster):**
+Open PowerShell **as Administrator** (right-click → "Run as administrator") and run:
+
+```powershell
+Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
+```
+
+It will show a small loading bar at the top of the terminal. Once it finishes, it will print out `Online : True` and `RestartNeeded : False`.
+
+After either method, **close that PowerShell window entirely and open a new one** so the environment variables refresh. You should now be able to run `ssh -V` successfully.
 
 #### Set Up SSH Key Authentication
 
@@ -352,7 +364,10 @@ Download and install the Xpra Windows client from [xpra.org](https://xpra.org/).
 
 ### 4.2 Map Network Shares as Drive Letters
 
-Open PowerShell **as Administrator** and map the PC's SMB shares to drive letters. These will persist across reboots:
+> [!WARNING]
+> **Do NOT run `net use` in an Administrator PowerShell window.** Windows UAC (User Account Control) Token Splitting causes drives mapped in an elevated context to be invisible in File Explorer, which runs as a standard user.
+
+Open a **normal (non-Admin)** PowerShell window and map the PC's SMB shares to drive letters. These will persist across reboots:
 
 ```powershell
 # Map PC Home directory to Z:
@@ -362,7 +377,53 @@ net use Z: \\100.117.73.75\Home /persistent:yes /user:void
 net use Y: \\100.117.73.75\Storage /persistent:yes /user:void
 ```
 
-> **Tip:** If the PC is behind a firewall, ensure SMB (port 445) is allowed over Tailscale, or use `sshfs-win` as an alternative to native SMB shares.
+Check **File Explorer → This PC** to verify the drives appear.
+
+> **Tip:** If the PC is behind a firewall, ensure SMB (port 445) is allowed over Tailscale, or use `sshfs-win` as an alternative to native SMB shares (see Troubleshooting section 4.5).
+
+**If drives were previously mapped from an Admin window**, clear the broken mappings first:
+
+```powershell
+net use * /delete /y
+```
+
+Then re-run the mapping commands above in a normal (non-Admin) shell.
+
+#### Verify SMB Connectivity
+
+If mapping returns errors like `The network path was not found` or `System error 53 / 67`, test whether the PC is actually reachable on port 445:
+
+```powershell
+Test-NetConnection -ComputerName 100.117.73.75 -Port 445
+```
+
+* **If `TcpTestSucceeded : False`:** Port 445 is blocked by a firewall, or Samba (`smbd`) is not running on your CachyOS PC.
+* **If `TcpTestSucceeded : True`:** The port is open, but the share names `[Home]` / `[Storage]` might not be defined in your PC's `/etc/samba/smb.conf`.
+
+#### Ensure Samba Is Active on CachyOS (If Not Already Configured)
+
+On your **CachyOS PC terminal**, ensure Samba is installed and your user is added:
+
+```fish
+# 1. Install Samba
+sudo pacman -S samba
+
+# 2. Add your user to the Samba database and set a password
+sudo smbpasswd -a void
+
+# 3. Enable and start the Samba daemon
+sudo systemctl enable --now smbd
+```
+
+#### Renaming Mapped Drives
+
+By default, Windows File Explorer names mapped drives as **`ShareName (\\IP_Address) (DriveLetter:)`**. To rename them:
+
+1. Right-click the drive in **This PC** (e.g., the **Storage** drive).
+2. Click **Rename** (or press **F2**).
+3. Type your preferred name (e.g., "PC Storage" or "Home") and press Enter.
+
+Windows will remember your custom name while still pointing to the Tailscale IP in the background.
 
 ### 4.3 PowerShell Functions
 
@@ -431,8 +492,8 @@ function guipc {
     # 1. Start the invisible X11 display on the PC
     ssh void@100.117.73.75 "xpra start :100 2>/dev/null"
 
-    # 2. Attach the Windows laptop to that display in the background
-    Start-Process -NoNewWindow -FilePath "xpra" -ArgumentList "attach", "ssh://void@100.117.73.75/100"
+    # 2. Attach the Windows laptop using the explicit file path
+    Start-Process -NoNewWindow -FilePath "C:\Program Files\Xpra\Xpra.exe" -ArgumentList "attach", "ssh://void@100.117.73.75/100"
 
     Write-Host "Launching $AppCmd on Host PC at $target..." -ForegroundColor Cyan
 
@@ -440,7 +501,7 @@ function guipc {
     ssh -t void@100.117.73.75 "cd '$target' && export DISPLAY=:100 && exec fish -i -C '$AppCmd'"
 
     # 4. Clean up Xpra when done
-    Get-Process -Name "xpra" -ErrorAction SilentlyContinue | Stop-Process
+    Get-Process -Name "Xpra" -ErrorAction SilentlyContinue | Stop-Process
 }
 
 function guipcz {
@@ -450,12 +511,13 @@ function guipcz {
 
     ssh void@100.117.73.75 "xpra start :100 2>/dev/null"
 
-    Start-Process -NoNewWindow -FilePath "xpra" -ArgumentList "attach", "ssh://void@100.117.73.75/100"
+    # Attach using explicit path
+    Start-Process -NoNewWindow -FilePath "C:\Program Files\Xpra\Xpra.exe" -ArgumentList "attach", "ssh://void@100.117.73.75/100"
 
     Write-Host "Jumping to Zellij (GUI-enabled) session on PC at $target..." -ForegroundColor Cyan
     ssh -t void@100.117.73.75 "cd '$target' && export DISPLAY=:100 && exec zellij attach -c astro_gui"
 
-    Get-Process -Name "xpra" -ErrorAction SilentlyContinue | Stop-Process
+    Get-Process -Name "Xpra" -ErrorAction SilentlyContinue | Stop-Process
 }
 
 function wakepc {
@@ -471,11 +533,8 @@ function wakepc {
 }
 ```
 
-After saving, reload your profile:
-
-```powershell
-. $PROFILE
-```
+> [!TIP]
+> **Do not reload with `. $PROFILE`** if you have Oh My Posh installed — it will throw harmless but confusing red errors about duplicate key bindings. Instead, simply **close the PowerShell window and open a new one** to load the profile cleanly from scratch.
 
 ### 4.4 Usage (Identical Workflow)
 
@@ -502,3 +561,90 @@ guipcz
 You'll land right back in your running Zellij session with MESA still going, and any `pgstar` plot windows will reappear on your Windows desktop via Xpra.
 
 > **Important:** Replace `XX:XX:XX:XX:XX:XX` in the `wakepc` function with your PC's actual MAC address. You can find it by running `ip link` on your PC.
+
+> [!NOTE]
+> If you installed Xpra in a custom location instead of `C:\Program Files\Xpra\`, update the `-FilePath` in the `guipc` and `guipcz` functions to match your actual install path.
+
+### 4.5 Troubleshooting
+
+#### Xpra: "Command Not Found" or "Not Recognized"
+
+This error happens because Windows does not know where the `xpra` executable is located (it wasn't automatically added to your system's PATH during installation).
+
+The corrected `guipc` and `guipcz` functions above already use the full explicit path (`C:\Program Files\Xpra\Xpra.exe`). If you still see this error, verify your Xpra install location:
+
+```powershell
+Get-ChildItem "C:\Program Files\Xpra\Xpra.exe"
+```
+
+If it's installed elsewhere, update the `-FilePath` parameter in both functions accordingly.
+
+---
+
+#### Oh My Posh Errors When Reloading Profile
+
+If you run `. $PROFILE` and see red errors about `Spacebar`, `Enter`, or `Ctrl+C` key bindings already being bound, this is a known bug with **Oh My Posh**. When you reload the profile, Oh My Posh tries to initialize itself a second time in the same session, and the duplicate bindings cause errors.
+
+**The errors are harmless** — your functions still loaded correctly.
+
+**How to avoid this:** Whenever you edit your `$PROFILE` and have Oh My Posh installed, simply **close the PowerShell window and open a new one**. A fresh window loads the profile cleanly without triggering the duplicate binding errors.
+
+---
+
+#### `jumppc` or `wakepc` Not Recognized After Restart
+
+This usually happens because Windows has **two separate versions of PowerShell** with independent `$PROFILE` files:
+
+| Version | Typical Profile Path |
+|---|---|
+| Windows PowerShell 5 | `~\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1` |
+| PowerShell 7 | `~\Documents\PowerShell\Microsoft.PowerShell_profile.ps1` |
+
+If the functions worked once (via `. $PROFILE`) but disappeared after restarting, you likely saved them into the wrong version's profile.
+
+**Fix:**
+
+1. Verify what your current PowerShell 7 profile contains:
+
+```powershell
+Get-Content $PROFILE
+```
+
+If it does not print your `jumppc` and `wakepc` functions, the code is missing from this profile.
+
+2. Edit the correct profile directly from your current terminal:
+
+```powershell
+notepad $PROFILE
+```
+
+3. Scroll to the very bottom, paste the entire block of functions (from `Get-PCTargetDir` all the way through `wakepc`), save (Ctrl+S), and close Notepad.
+4. Close the terminal and open a fresh one. `jumppc` should now be permanently recognized.
+
+---
+
+#### Mapped Drives Not Visible in File Explorer
+
+See the UAC warning in section 4.2 above. The most common cause is mapping drives from an Administrator PowerShell window. Always use a **normal (non-Admin)** shell for `net use` commands.
+
+---
+
+#### Alternative to SMB: Mount via SSH (SSHFS-Win)
+
+If you don't want to configure and maintain Samba on your CachyOS PC, you can mount folders directly over your existing SSH connection:
+
+1. Install **WinFsp** and **SSHFS-Win** via winget in PowerShell:
+
+```powershell
+winget install BillZiss-Gh.WinFsp
+winget install evil-shred.SSHFS-Win
+```
+
+2. In File Explorer, right-click **This PC → Map network drive**.
+3. Choose drive letter `Z:` and enter this path (using your SSH key or password):
+
+```text
+\\sshfs.r\void@100.117.73.75\home\void
+```
+
+This maps your PC's home directory over the encrypted Tailscale SSH tunnel — no Samba configuration required.
