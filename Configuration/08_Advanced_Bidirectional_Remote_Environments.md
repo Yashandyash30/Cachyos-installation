@@ -602,12 +602,108 @@ ssh void@100.117.73.75 "zellij kill-all-sessions"
 
 > **Tip:** You can also run these `zellij kill` commands from inside a regular `jumppc` shell on the PC.
 
-> **Important:** Replace `XX:XX:XX:XX:XX:XX` in the `wakepc` function with your PC's actual MAC address. You can find it by running `ip link` on your PC.
+### 4.6 File Explorer Context Menu (Antigravity IDE)
 
-> [!NOTE]
-> If you installed Xpra in a custom location instead of `C:\Program Files\Xpra\`, update the `-FilePath` in the `guipc` and `guipcz` functions to match your actual install path.
+On Linux, we added a Dolphin right-click menu entry in Part 2. On Windows, we achieve the same thing using Windows Registry entries and a small PowerShell "middleman" script that translates mapped drive paths into SSH remote URIs.
 
-### 4.6 Troubleshooting
+#### Step 1: Find Your Antigravity IDE Path
+
+Locate the exact path to the Antigravity IDE executable:
+
+1. Find the shortcut you use to launch it (Desktop or Start Menu).
+2. Right-click it and select **Properties**.
+3. Copy the path from the **Target** box.
+
+> The default path is typically: `C:\Users\Yash\AppData\Local\Programs\Antigravity IDE\Antigravity IDE.exe`
+
+#### Step 2: Create the Middleman Script
+
+When you right-click a folder on a mapped network drive (like `Z:\Coursework`), Windows sends the literal drive letter path to the IDE. The IDE has no idea it should connect via SSH. This script intercepts the path, translates `Z:\` → `/home/void/` and `Y:\` → `/mnt/Storage/`, and launches the IDE in **Remote SSH mode**.
+
+1. Open PowerShell and run:
+
+```powershell
+notepad C:\Users\Yash\Documents\Launch-Antigravity.ps1
+```
+
+2. Paste this code into Notepad:
+
+```powershell
+param([string]$path)
+
+$exePath = "C:\Users\Yash\AppData\Local\Programs\Antigravity IDE\Antigravity IDE.exe"
+
+# If the path is on the Z: or Y: drives, translate to the remote Linux path
+if ($path -match "^Z:") {
+    $linuxPath = $path -replace '^Z:', '/home/void' -replace '\\', '/'
+    $remoteUri = "vscode-remote://ssh-remote+void@100.117.73.75$linuxPath"
+    Start-Process -FilePath $exePath -ArgumentList "--folder-uri", "`"$remoteUri`""
+}
+elseif ($path -match "^Y:") {
+    $linuxPath = $path -replace '^Y:', '/mnt/Storage' -replace '\\', '/'
+    $remoteUri = "vscode-remote://ssh-remote+void@100.117.73.75$linuxPath"
+    Start-Process -FilePath $exePath -ArgumentList "--folder-uri", "`"$remoteUri`""
+}
+else {
+    # If it is a local C: drive folder, just open it normally
+    Start-Process -FilePath $exePath -ArgumentList "`"$path`""
+}
+```
+
+3. **Save** and close Notepad.
+
+#### Step 3: Add the Registry Entries
+
+Create a `.reg` file that adds "Open in Antigravity IDE" to the right-click menu for folders, folder backgrounds, and individual files.
+
+1. Open Notepad and paste this code:
+
+```registry
+Windows Registry Editor Version 5.00
+
+; 1. Right-click a folder
+[HKEY_CLASSES_ROOT\Directory\shell\AntigravityIDE]
+@="Open in Antigravity IDE"
+"Icon"="\"C:\\Users\\Yash\\AppData\\Local\\Programs\\Antigravity IDE\\Antigravity IDE.exe\""
+
+[HKEY_CLASSES_ROOT\Directory\shell\AntigravityIDE\command]
+@="powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File \"C:\\Users\\Yash\\Documents\\Launch-Antigravity.ps1\" \"%1\""
+
+; 2. Right-click the empty background inside a folder
+[HKEY_CLASSES_ROOT\Directory\Background\shell\AntigravityIDE]
+@="Open in Antigravity IDE"
+"Icon"="\"C:\\Users\\Yash\\AppData\\Local\\Programs\\Antigravity IDE\\Antigravity IDE.exe\""
+
+[HKEY_CLASSES_ROOT\Directory\Background\shell\AntigravityIDE\command]
+@="powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File \"C:\\Users\\Yash\\Documents\\Launch-Antigravity.ps1\" \"%V\""
+
+; 3. Right-click a specific file
+[HKEY_CLASSES_ROOT\*\shell\AntigravityIDE]
+@="Open in Antigravity IDE"
+"Icon"="\"C:\\Users\\Yash\\AppData\\Local\\Programs\\Antigravity IDE\\Antigravity IDE.exe\""
+
+[HKEY_CLASSES_ROOT\*\shell\AntigravityIDE\command]
+@="powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File \"C:\\Users\\Yash\\Documents\\Launch-Antigravity.ps1\" \"%1\""
+```
+
+2. Save as `Antigravity_Context_Menu.reg` on your Desktop (set "Save as type" to **All Files**).
+3. Double-click the `.reg` file and click **Yes** to apply.
+
+#### Windows 11 Note
+
+Windows 11 hides custom context menu entries behind the compact menu by default. To access the full menu:
+
+* Right-click any file or folder → click **Show more options** at the bottom.
+* Or hold **Shift** while right-clicking to skip directly to the full menu.
+
+Your **Open in Antigravity IDE** entry will appear with its icon in the expanded menu.
+
+> [!TIP]
+> If you change your Antigravity IDE install path in the future, you only need to update the `$exePath` variable in `Launch-Antigravity.ps1` — the registry entries always point to the script, not the IDE directly.
+
+---
+
+### 4.7 Troubleshooting
 
 #### Xpra: "Command Not Found" or "Not Recognized"
 
