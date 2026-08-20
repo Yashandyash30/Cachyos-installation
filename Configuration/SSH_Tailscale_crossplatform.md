@@ -59,6 +59,7 @@ ssh-copy-id void@<LAPTOP_TAILSCALE_IP>
 4. **Send keys to voidphone (Run on BOTH PC and Laptop):**
 
 This ensures your `sshphone` alias works instantly without a password prompt.
+
 ```bash
 ssh-copy-id -p 8022 u0_a183@100.103.187.97
 ```

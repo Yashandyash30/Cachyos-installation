@@ -13,21 +13,18 @@ This is the complete reference for setting up bidirectional file sharing using `
 Before a machine can share or access files, it needs the required packages.
 
 1. **For the Server (Sharing files):**
+
 ```bash
 paru -S ksmbd-tools
 sudo mkdir -p /etc/ksmbd
-
 ```
 
-
 2. **For the Client (Accessing files):**
+
 ```bash
 sudo pacman -S cifs-utils
 sudo mkdir -p /etc/samba
-
 ```
-
-
 
 ---
 
@@ -40,7 +37,6 @@ Set the network password that the other machine will use to connect.
 
 ```bash
 sudo ksmbd.adduser -a void
-
 ```
 
 **2. Configure the Shared Folders**
@@ -48,7 +44,6 @@ Open the server configuration file:
 
 ```bash
 sudo nano /etc/ksmbd/ksmbd.conf
-
 ```
 
 Structure it like this (you can add as many folder blocks as you want under the `[global]` block):
@@ -66,7 +61,6 @@ Structure it like this (you can add as many folder blocks as you want under the 
     valid users = @void
     force user = void
     force group = void
-
 ```
 
 **3. Open the Firewall**
@@ -74,7 +68,6 @@ Allow the SMB protocol through UFW so the other machine can connect:
 
 ```bash
 sudo ufw allow 445/tcp
-
 ```
 
 **4. Start/Restart the Server**
@@ -84,7 +77,6 @@ Apply the configuration and enable the service:
 sudo modprobe ksmbd
 sudo systemctl enable --now ksmbd.service
 sudo systemctl restart ksmbd.service
-
 ```
 
 ---
@@ -98,7 +90,6 @@ This hides your password from plain text.
 
 ```bash
 sudo nano /etc/samba/credentials
-
 ```
 
 Add the login info:
@@ -106,7 +97,6 @@ Add the login info:
 ```text
 username=void
 password=YOUR_KSMBD_PASSWORD
-
 ```
 
 **2. Lock Down & Assign Ownership**
@@ -115,7 +105,6 @@ Secure the file so others can't read it, but ensure *your* user account has perm
 ```bash
 sudo chmod 600 /etc/samba/credentials
 sudo chown $USER:$USER /etc/samba/credentials
-
 ```
 
 **3. Create the Mount Point**
@@ -123,7 +112,6 @@ Create an empty folder where the remote files will appear:
 
 ```bash
 sudo mkdir -p /mnt/Remote_Folder
-
 ```
 
 **4. Edit the fstab**
@@ -131,7 +119,6 @@ Open the file systems table:
 
 ```bash
 sudo nano /etc/fstab
-
 ```
 
 Add the manual mount line (replace `IP_ADDRESS` and `ShareName`).
@@ -140,7 +127,6 @@ Add the manual mount line (replace `IP_ADDRESS` and `ShareName`).
 
 ```text
 //IP_ADDRESS/ShareName  /mnt/Remote_Folder  cifs  credentials=/etc/samba/credentials,uid=1000,gid=1000,vers=3.1.1,users,noauto,nofail,_netdev  0  0
-
 ```
 
 **5. Activate the Mount**
@@ -149,7 +135,6 @@ Reload system daemons to recognize the new fstab entry:
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl restart local-fs.target
-
 ```
 
 *The folder will now remain completely dormant during boot. It will instantly connect to the server only when you actively double-click the drive in Dolphin.*
@@ -164,6 +149,7 @@ Whenever you want to add a completely new folder to your network, it is a simple
 
 1. Open `/etc/ksmbd/ksmbd.conf`.
 2. Add a new block at the bottom:
+
 ```ini
 [NewDrive]
     path = /mnt/NewDrive
@@ -172,9 +158,7 @@ Whenever you want to add a completely new folder to your network, it is a simple
     valid users = @void
     force user = void
     force group = void
-
 ```
-
 
 3. Restart the service: `sudo systemctl restart ksmbd.service`
 
@@ -195,14 +179,12 @@ Run the add user command again. It will automatically overwrite the old password
 
 ```bash
 sudo ksmbd.adduser -a void
-
 ```
 
 Restart the service to apply it:
 
 ```bash
 sudo systemctl restart ksmbd.service
-
 ```
 
 **Step 2: Update the Client**
@@ -210,7 +192,6 @@ Open the hidden credentials file:
 
 ```bash
 nano /etc/samba/credentials
-
 ```
 
 *(Note: Since you took ownership of this file, you no longer need `sudo` to edit it).*
@@ -241,7 +222,6 @@ Run the following command to add your local network to WARP's exclusion list. *(
 
 ```bash
 warp-cli tunnel ip add-range 172.21.0.0/22
-
 ```
 
 **3. Restart the Connection**
@@ -250,11 +230,9 @@ The new routing rules will not take effect until the tunnel is rebooted. Run the
 ```bash
 warp-cli disconnect
 warp-cli connect
-
 ```
 
 You can now keep Cloudflare WARP running 24/7 for privacy, and still click-to-mount your network drives in Dolphin without any interference!
-
 
 Click the folder in Dolphin to reconnect with your new password!
 
@@ -311,8 +289,6 @@ sudo systemctl restart local-fs.target
 ```
 
 *Your mount point will now dynamically track the target machine across your local network, connecting instantly whether it is plugged into a router or running on Wi-Fi!*
-
-
 
 ### Part 7: Troubleshooting - How to Remove Duplicate Network Drives in Dolphin
 
@@ -383,6 +359,7 @@ If you want your KSMBD network drives to connect instantly whether you are at ho
 
 **Alternative Zero-Config Method (SFTP):**
 If you already have SSH access set up over Tailscale, you do not even need `fstab` or KSMBD!
+
 1. Open Dolphin.
 2. Click the address bar at the top (or press `Ctrl+L`).
 3. Type `sftp://void@100.117.73.75/` (using the target machine's Tailscale IP).
