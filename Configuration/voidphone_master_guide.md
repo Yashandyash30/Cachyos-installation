@@ -320,3 +320,88 @@ If for some reason you ever need to manually restart the services without reboot
 ```bash
 sudo /data/adb/service.d/termux_services.sh
 ```
+
+---
+
+## Phase 7: Mounting Phone Storage to PC/Laptop (Over Tailscale)
+
+You can seamlessly mount your phone's internal storage directly into Dolphin on your PC or Laptop using your existing Tailscale SSH connection. No Samba or KSMBD configuration is required on the phone.
+
+### 1. Grant Storage Permissions (Run Once)
+Since you manage the phone headlessly, force-grant the necessary storage permissions to Termux via root by running this from your PC:
+
+```bash
+ssh -p 8022 u0_a183@100.103.187.97 "sudo appops set com.termux MANAGE_EXTERNAL_STORAGE allow; sudo pm grant com.termux android.permission.READ_EXTERNAL_STORAGE; sudo pm grant com.termux android.permission.WRITE_EXTERNAL_STORAGE"
+```
+
+### 2. Method A: The Dolphin SFTP Way (Zero-Config)
+This is the fastest and most stable method. It uses Dolphin's native SFTP support.
+
+1. Open **Dolphin**.
+2. Click the address bar (`Ctrl+L`).
+3. Paste the following exact address and press Enter:
+   `sftp://u0_a183@100.103.187.97:8022/storage/emulated/0`
+4. Right-click any empty space in Dolphin's left sidebar (under "Network" or "Places") and select **Add to Places**.
+5. Right-click the new shortcut, select **Edit**, and rename it to **Voidphone Storage**.
+
+### 3. Method B: The `/etc/fstab` Way (System-Level Mount)
+If you prefer the drive to be mounted at `/mnt/` exactly like your KSMBD network drives (dormant on boot, mounts on click):
+
+1. Install SSHFS on your CachyOS PC:
+   ```bash
+   sudo pacman -S sshfs
+   ```
+2. Create the mount point:
+   ```bash
+   sudo mkdir -p /mnt/Voidphone
+   sudo chown void:void /mnt/Voidphone
+   ```
+3. Add this line to `/etc/fstab` (it uses the same `noauto,nofail,users,_netdev` flags as your other network drives so it only mounts when clicked in Dolphin):
+   ```text
+   u0_a183@100.103.187.97:/storage/emulated/0  /mnt/Voidphone  fuse.sshfs  port=8022,IdentityFile=/home/void/.ssh/id_ed25519,users,noauto,nofail,_netdev  0  0
+   ```
+4. Reload system daemons to activate the new entry:
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl restart local-fs.target
+   ```
+
+---
+
+## Phase 8: Remote Camera Capture & Automation
+
+You can silently trigger your phone's front camera remotely and instantly download the image to your current folder on your PC or Laptop.
+
+### 1. Grant Camera Permissions (Run Once)
+Since you manage the phone headlessly, force-grant the camera permissions to Termux via root by running this from your PC:
+
+```bash
+ssh -p 8022 u0_a183@100.103.187.97 "sudo pm grant com.termux.api android.permission.CAMERA; sudo pm grant com.termux android.permission.CAMERA"
+```
+
+### 2. Add the Fish Alias (For PC & Laptop)
+Paste this into your Fish terminal on your PC or Laptop. This creates a `takephonepic` command that snaps a photo and downloads it directly to whatever folder you are currently in, adding a timestamp to the filename so you don't overwrite older photos.
+
+```fish
+function takephonepic
+    echo "📸 Snapping photo from voidphone front camera..."
+    
+    # Take the photo and save it temporarily on the phone
+    ssh -p 8022 u0_a183@100.103.187.97 "termux-camera-photo -c 1 ~/latest_pic.jpg"
+    
+    if test $status -eq 0
+        # Generate a timestamped filename
+        set filename "voidphone_pic_"(date +%Y%m%d_%H%M%S)".jpg"
+        
+        echo "📥 Downloading to $PWD/$filename..."
+        scp -q -P 8022 u0_a183@100.103.187.97:~/latest_pic.jpg ./$filename
+        
+        echo "✅ Done!"
+    else
+        echo "❌ Failed to take photo. Make sure permissions are granted."
+    end
+end
+funcsave takephonepic
+```
+
+**Usage:** Open your terminal, navigate to any folder where you want to save the picture, and simply type `takephonepic`.
