@@ -1,6 +1,9 @@
 # Voidphone Master Guide: Remote Management & Containerized Command Center
 
-This comprehensive guide merges your remote management tools, Wake-on-LAN (WoL) capabilities, and an always-on containerized Uptime Kuma dashboard into a single, cohesive workflow for your Android phone (**`voidphone`**), CachyOS PC, and CachyOS Laptop.
+This comprehensive guide merges your remote management tools, Wake-on-LAN (WoL) capabilities, and an always-on containerized Uptime Kuma dashboard into a single, cohesive workflow for your Android phone (**`voidphone`** — Redmi Note 10 Lite running LineageOS, rooted via Magisk), CachyOS PC, and CachyOS Laptop.
+
+> [!IMPORTANT]
+> This phone is managed **headlessly** over SSH via Tailscale. Many commands in this guide are designed to be run remotely from your PC or Laptop. Sections that must be run locally on the phone are clearly marked.
 
 ---
 
@@ -145,9 +148,9 @@ exit
 
 ---
 
-## Phase 3: The Unified Auto-Boot Script (Magisk)
+## Phase 3: The Unified Auto-Boot Script (Magisk + ADB Fallback)
 
-Since you are rooted, the most robust way to start your services is via a Magisk boot script. This ensures Uptime Kuma and SSH run as independent background processes. **Even if you accidentally swipe Termux away, your services will never be killed.**
+Since you are rooted, the most robust way to start your services is via a Magisk boot script. This ensures Uptime Kuma, SSH, and Wireless ADB all run as independent background processes at the system level. **Even if you accidentally swipe Termux away, your services will never be killed.**
 
 *(Note: You do not need the Termux:Boot app for this. You can uninstall it).*
 
@@ -161,8 +164,17 @@ until [ "$(getprop sys.boot_completed)" = "1" ]; do sleep 2; done
 
 # Load Termux environment and start services as your Termux user
 su u0_a183 -c "source /data/data/com.termux/files/usr/etc/profile && sshd"
-su u0_a183 -c "source /data/data/com.termux/files/usr/etc/profile && nohup proot-distro login ubuntu -- bash -c \"cd ~/uptime-kuma && node server/server.js --port=3001\" > /data/data/com.termux/files/home/uptime-kuma-server.log 2>&1 &"' > ~/termux_services.sh
+su u0_a183 -c "source /data/data/com.termux/files/usr/etc/profile && nohup proot-distro login ubuntu -- bash -c \"cd ~/uptime-kuma && node server/server.js --port=3001\" > /data/data/com.termux/files/home/uptime-kuma-server.log 2>&1 &"
+
+# Enable Wireless ADB on port 5555 as an ultimate fallback
+# This allows recovery via "adb connect" even if Termux/SSH is completely dead
+setprop service.adb.tcp.port 5555
+stop adbd
+start adbd' > ~/termux_services.sh
 ```
+
+> [!NOTE]
+> The Wireless ADB block at the end is your **safety net**. Because Magisk runs this script at the system level (before any Android app launches), ADB will *always* be listening on port `5555` after every boot, regardless of what happens to Termux. See [Recovery &amp; Troubleshooting](#recovery--troubleshooting) for how to use it.
 
 ### 2. Install to Magisk & Enable
 
@@ -185,9 +197,12 @@ Your phone will now silently boot all services directly from Android's init syst
 * Go to the [Tailscale Admin Console](https://login.tailscale.com/admin/machines) in a browser, rename your phone to **`voidphone`**. *(Note its Tailscale IP, e.g., `100.103.187.97`).*
 * In Android **Settings** > **Network & Internet** > **VPN**, tap the gear icon next to Tailscale and enable **Always-on VPN**.
 
-### 2. Enable USB Debugging
+### 2. Enable USB Debugging & Wireless ADB
 
-In Android **Developer Options**, turn on **USB Debugging** so your computers can interface with it over a physical USB cable.
+In Android **Developer Options**:
+
+* Turn on **USB Debugging** so your computers can interface with it over a physical USB cable.
+* The Magisk boot script (Phase 3) automatically enables **Wireless ADB on port 5555** at every boot, so you do not need to manually configure this.
 
 ---
 
@@ -298,43 +313,23 @@ funcsave wakepc
 
 ---
 
-## Daily Maintenance & Workflow
-
-* **Network Scanning:** Type `scanlan` on the phone to map connected devices.
-* **Phone Management:** From anywhere via Tailscale, type `sshphone`.
-* **Remote Management from Phone:** Type `sshpc` on the phone to wake and connect to the PC, or `sshlaptop` to connect to the Laptop.
-* **Remote PC Wakeup (from Laptop):** From the laptop, type `wakepc`. Wait 15–30s for the PC to boot and connect to Tailscale, then SSH into it via `100.117.73.75` (or just use `sshpc`).
-* **Dashboard Logs:** To view live Uptime Kuma logs, run `cat ~/uptime-kuma-server.log` on the phone.
-* **Verify Container:** Run `pgrep -a proot` on the phone to ensure the container is active.
-
----
-
-## Recovery & Troubleshooting
-
-### Accidentally Closed Termux?
-
-Because you are using the Magisk Boot Script (Phase 3), **you do not need to worry about this!** Android's app-killer cannot touch processes started by Magisk. You can freely swipe Termux away from your recent apps, and Uptime Kuma will remain 100% online.
-
-If for some reason you ever need to manually restart the services without rebooting your phone, you can run:
-
-```bash
-sudo /data/adb/service.d/termux_services.sh
-```
-
----
-
 ## Phase 7: Mounting Phone Storage to PC/Laptop (Over Tailscale)
 
 You can seamlessly mount your phone's internal storage directly into Dolphin on your PC or Laptop using your existing Tailscale SSH connection. No Samba or KSMBD configuration is required on the phone.
 
 ### 1. Grant Storage Permissions (Run Once)
+
 Since you manage the phone headlessly, force-grant the necessary storage permissions to Termux via root by running this from your PC:
+
+> [!WARNING]
+> **This will instantly kill your SSH connection!** When Android grants major system permissions (like Storage or Camera) to a running app, it forcefully kills the app's entire process tree to apply the new UID group rules. If your SSH connection dies immediately after running this command, **do not panic**. Use the [ADB Fallback](#method-1-adb-fallback-no-physical-access-needed) to restart `sshd`, or simply restart the phone. See [Known Pitfalls](#known-pitfalls--android-gotchas) for a detailed explanation.
 
 ```bash
 ssh -p 8022 u0_a183@100.103.187.97 "sudo appops set com.termux MANAGE_EXTERNAL_STORAGE allow; sudo pm grant com.termux android.permission.READ_EXTERNAL_STORAGE; sudo pm grant com.termux android.permission.WRITE_EXTERNAL_STORAGE"
 ```
 
 ### 2. Method A: The Dolphin SFTP Way (Zero-Config)
+
 This is the fastest and most stable method. It uses Dolphin's native SFTP support.
 
 1. Open **Dolphin**.
@@ -345,6 +340,7 @@ This is the fastest and most stable method. It uses Dolphin's native SFTP suppor
 5. Right-click the new shortcut, select **Edit**, and rename it to **Voidphone Storage**.
 
 ### 3. Method B: The `/etc/fstab` Way (System-Level Mount)
+
 If you prefer the drive to be mounted at `/mnt/` exactly like your KSMBD network drives (dormant on boot, mounts on click):
 
 1. Install SSHFS on your CachyOS PC:
@@ -373,35 +369,159 @@ If you prefer the drive to be mounted at `/mnt/` exactly like your KSMBD network
 You can silently trigger your phone's front camera remotely and instantly download the image to your current folder on your PC or Laptop.
 
 ### 1. Grant Camera Permissions (Run Once)
+
 Since you manage the phone headlessly, force-grant the camera permissions to Termux via root by running this from your PC:
+
+> [!WARNING]
+> Just like the storage permission, **running this command will instantly kill your SSH connection** as Android forcefully restarts Termux to apply the camera permissions. Use the [ADB Fallback](#method-1-adb-fallback-no-physical-access-needed) to restart `sshd`, or simply restart the phone.
 
 ```bash
 ssh -p 8022 u0_a183@100.103.187.97 "sudo pm grant com.termux.api android.permission.CAMERA; sudo pm grant com.termux android.permission.CAMERA"
 ```
 
 ### 2. Add the Fish Alias (For PC & Laptop)
-Paste this into your Fish terminal on your PC or Laptop. This creates a `takephonepic` command that snaps a photo and downloads it directly to whatever folder you are currently in, adding a timestamp to the filename so you don't overwrite older photos.
+
+Paste this into your Fish terminal on your PC or Laptop. This creates a `takephonepic` command that snaps a photo and downloads it directly to whatever folder you are currently in.
+
+> [!IMPORTANT]
+> **Why does this wake up the screen?** Starting with Android 11, apps that access the camera while the screen is completely off are treated as a privacy violation. Android will forcefully kill the entire app (Termux + SSH) to stop it. By using root to briefly wake the screen via `input keyevent 224` (KEYCODE_WAKEUP), Termux is temporarily treated as a "foreground-visible" context, bypassing the restriction. The screen is immediately put back to sleep via `input keyevent 223` (KEYCODE_SLEEP) after the capture.
 
 ```fish
-function takephonepic
+function phonepic
     echo "📸 Snapping photo from voidphone front camera..."
-    
+  
+    # Wake the screen up (even if locked) to bypass background camera restrictions
+    ssh -p 8022 u0_a183@100.103.187.97 "sudo input keyevent 224; sleep 1"
+  
     # Take the photo and save it temporarily on the phone
     ssh -p 8022 u0_a183@100.103.187.97 "termux-camera-photo -c 1 ~/latest_pic.jpg"
-    
-    if test $status -eq 0
+    set photo_status $status
+  
+    # Immediately put the screen back to sleep
+    ssh -p 8022 u0_a183@100.103.187.97 "sudo input keyevent 223"
+  
+    if test $photo_status -eq 0
         # Generate a timestamped filename
         set filename "voidphone_pic_"(date +%Y%m%d_%H%M%S)".jpg"
-        
+      
         echo "📥 Downloading to $PWD/$filename..."
         scp -q -P 8022 u0_a183@100.103.187.97:~/latest_pic.jpg ./$filename
-        
+      
         echo "✅ Done!"
     else
         echo "❌ Failed to take photo. Make sure permissions are granted."
     end
 end
-funcsave takephonepic
+funcsave phonepic
 ```
 
 **Usage:** Open your terminal, navigate to any folder where you want to save the picture, and simply type `takephonepic`.
+
+---
+
+## Daily Maintenance & Workflow
+
+* **Network Scanning:** Type `scanlan` on the phone to map connected devices.
+* **Phone Management:** From anywhere via Tailscale, type `sshphone`.
+* **Remote Management from Phone:** Type `sshpc` on the phone to wake and connect to the PC, or `sshlaptop` to connect to the Laptop.
+* **Remote PC Wakeup (from Laptop):** From the laptop, type `wakepc`. Wait 15–30s for the PC to boot and connect to Tailscale, then SSH into it via `100.117.73.75` (or just use `sshpc`).
+* **Dashboard Logs:** To view live Uptime Kuma logs, run `cat ~/uptime-kuma-server.log` on the phone.
+* **Verify Container:** Run `pgrep -a proot` on the phone to ensure the container is active.
+
+---
+
+## Recovery & Troubleshooting
+
+You have **two layers of remote recovery** available, so you should never need physical access to the phone again.
+
+### Accidentally Closed Termux?
+
+Because you are using the Magisk Boot Script (Phase 3), **you do not need to worry about this!** Android's app-killer cannot touch processes started by Magisk. You can freely swipe Termux away from your recent apps, and SSH + Uptime Kuma will remain 100% online.
+
+If for some reason you ever need to manually restart the services without rebooting your phone, you can run:
+
+```bash
+sudo /data/adb/service.d/termux_services.sh
+```
+
+### SSH is dead (`Connection refused` on port 8022)?
+
+This means the Termux process was killed by Android (usually due to granting permissions or background camera access — see [Known Pitfalls](#known-pitfalls--android-gotchas)). Use one of these recovery methods:
+
+#### Method 1: ADB Fallback (No physical access needed)
+
+The Magisk boot script enables Wireless ADB on port `5555` at every boot. Because this runs at the system level, it survives even when Android kills Termux. From your PC or Laptop:
+
+1. **Install ADB** (if not already installed):
+
+   ```bash
+   sudo pacman -S android-tools
+   ```
+2. **Connect to the phone via ADB over Tailscale:**
+
+   ```bash
+   adb connect 100.103.187.97:5555
+   ```
+3. **Force Termux's SSH server to restart:**
+
+   ```bash
+   adb shell su -c 'su u0_a183 -c "source /data/data/com.termux/files/usr/etc/profile && sshd"'
+   ```
+4. **Verify SSH is back:**
+
+   ```bash
+   nc -zvw1 100.103.187.97 8022
+   ```
+
+   You should see `Connection succeeded!`. Now `sshphone` will work again.
+5. **Disconnect ADB when done:**
+
+   ```bash
+   adb disconnect 100.103.187.97:5555
+   ```
+
+#### Method 2: Full Reboot (If ADB also fails)
+
+If both SSH and ADB are unresponsive (e.g. the phone completely froze or Tailscale disconnected due to deep sleep), you will need physical access to restart the phone. Once it reboots, the Magisk boot script will automatically bring everything back online.
+
+> [!TIP]
+> To prevent Tailscale from disconnecting during deep sleep, make sure **Always-on VPN** is enabled for Tailscale in Android Settings > Network & Internet > VPN. Also exempt both Termux and Tailscale from battery optimization in Settings > Apps > Battery.
+
+---
+
+## Known Pitfalls & Android Gotchas
+
+These are real-world issues that have caused SSH lockouts in the past. Understanding them will save you time.
+
+### 1. Granting Permissions Kills SSH
+
+**What happens:** When you run `pm grant` or `appops set` to give Termux a major permission (Storage, Camera, etc.), Android's `ActivityManager` forcefully kills the entire Termux process tree to apply the new UID group rules. Since `sshd` runs under Termux, your SSH connection instantly dies.
+
+**When it happens:** Only when granting permissions for the first time (the "Run Once" steps in Phases 7 and 8). Once permissions are granted, they persist across reboots.
+
+**How to recover:** Use the [ADB Fallback](#method-1-adb-fallback-no-physical-access-needed) to restart `sshd`.
+
+**How to avoid:** If you need to grant multiple permissions, batch them into a single command so you only lose the connection once. Then recover via ADB.
+
+### 2. Background Camera Access Kills Termux
+
+**What happens:** Starting with Android 11, accessing the camera while the phone screen is completely off is treated as a privacy violation. Android will kill the entire app (Termux) to stop the camera access, taking your SSH server down with it.
+
+**When it happens:** Every time you run `termux-camera-photo` (or the old `takephonepic` alias) while the phone screen is asleep.
+
+**How to recover:** Use the [ADB Fallback](#method-1-adb-fallback-no-physical-access-needed) to restart `sshd`.
+
+**How to avoid:** The updated `takephonepic` alias (Phase 8) now uses root to briefly wake the screen before taking the photo and immediately puts it back to sleep afterward. This tricks Android into treating Termux as a foreground app during the capture. **Always use the updated alias.**
+
+### 3. Android Doze Mode Disconnects Tailscale
+
+**What happens:** After extended idle time with the screen off, Android's Doze mode aggressively suspends network activity. Tailscale loses its VPN tunnel, and the phone becomes completely unreachable — even ADB over Tailscale won't work.
+
+**When it happens:** Usually after several hours of inactivity, especially on battery.
+
+**How to prevent:**
+
+* Enable **Always-on VPN** for Tailscale (Settings > Network & Internet > VPN).
+* Set Tailscale to **Unrestricted** battery usage (Settings > Apps > Tailscale > Battery).
+* Set Termux to **Unrestricted** battery usage as well.
+* Keep Termux's **wakelock** acquired (swipe down notification shade > tap "Acquire wakelock" on the Termux notification, or run `termux-wake-lock`).
