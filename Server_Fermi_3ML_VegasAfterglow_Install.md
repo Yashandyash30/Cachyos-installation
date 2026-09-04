@@ -151,18 +151,18 @@ def patch_elf_verneed(filepath):
             data = bytearray(f.read())
             if data[:4] != b"\x7fELF" or data[4] != 2:
                 return False
-              
+            
             e_shoff = struct.unpack("<Q", data[40:48])[0]
             e_shentsize = struct.unpack("<H", data[58:60])[0]
             e_shnum = struct.unpack("<H", data[60:62])[0]
             e_shstrndx = struct.unpack("<H", data[62:64])[0]
-          
+        
             if e_shstrndx >= e_shnum or e_shoff == 0:
                 return False
-              
+            
             shstr_hdr = e_shoff + e_shstrndx * e_shentsize
             shstr_offset = struct.unpack("<Q", data[shstr_hdr+24:shstr_hdr+32])[0]
-          
+        
             sections = {}
             for i in range(e_shnum):
                 hdr = e_shoff + i * e_shentsize
@@ -171,20 +171,20 @@ def patch_elf_verneed(filepath):
                 sh_size = struct.unpack("<Q", data[hdr+32:hdr+40])[0]
                 name = data[shstr_offset + sh_name_idx:].split(b"\x00")[0].decode("latin1", errors="ignore")
                 sections[name] = (sh_offset, sh_size)
-              
+            
             if ".gnu.version_r" not in sections or ".dynstr" not in sections:
                 return False
-              
+            
             dynstr_off, dynstr_size = sections[".dynstr"]
             verneed_off, verneed_size = sections[".gnu.version_r"]
-          
+        
             dynstr = data[dynstr_off : dynstr_off + dynstr_size]
             idx_227 = dynstr.find(b"GLIBC_2.27\x00")
             idx_225 = dynstr.find(b"GLIBC_2.2.5\x00")
-          
+        
             if idx_227 == -1 or idx_225 == -1:
                 return False
-              
+            
             hash_225 = 0x09691a75
             curr_vn = verneed_off
             modified = False
@@ -192,25 +192,25 @@ def patch_elf_verneed(filepath):
                 vn_cnt = struct.unpack("<H", data[curr_vn+2:curr_vn+4])[0]
                 vn_aux = struct.unpack("<I", data[curr_vn+8:curr_vn+12])[0]
                 vn_next = struct.unpack("<I", data[curr_vn+12:curr_vn+16])[0]
-              
+            
                 curr_vna = curr_vn + vn_aux
                 for _ in range(vn_cnt):
                     vna_name = struct.unpack("<I", data[curr_vna+8:curr_vna+12])[0]
                     vna_next = struct.unpack("<I", data[curr_vna+12:curr_vna+16])[0]
-                  
+                
                     if vna_name == idx_227:
                         data[curr_vna : curr_vna+4] = struct.pack("<I", hash_225)
                         data[curr_vna+8 : curr_vna+12] = struct.pack("<I", idx_225)
                         modified = True
-                      
+                    
                     if vna_next == 0:
                         break
                     curr_vna += vna_next
-                  
+                
                 if vn_next == 0:
                     break
                 curr_vn += vn_next
-              
+            
             if modified:
                 f.seek(0)
                 f.write(data)
@@ -274,7 +274,10 @@ python -c "import fermipy; print('Fermipy OK')"
 
 > Use this if you want a **separate** 3ML environment with full XSPEC support, independent of the Fermi environment above.
 
-### 3.1 Create the Environment with XSPEC
+### 3.1 Create the Environment with XSPEC, ThreeML & Astromodels
+
+> [!IMPORTANT]
+> The latest NASA build (`xspec 13.x`) is compiled against Python 3.14, which breaks `threeML` and `astromodels` (which only support up to Python 3.12). We explicitly pin **`xspec=12.15.1`** and **`python=3.12`** so the entire scientific stack installs with 100% compatibility in one go.
 
 > [!WARNING]
 > The HEASARC server is notoriously slow and frequently times out on this institute's firewall. If the `mamba create` command below fails with a "Timeout was reached (28)" error, you MUST download the package on your local laptop and SCP it to the server (see workaround below).
@@ -285,26 +288,30 @@ python -c "import fermipy; print('Fermipy OK')"
 mamba create -n threeML \
   --override-channels \
   -c https://heasarc.gsfc.nasa.gov/FTP/software/conda/ \
-  -c conda-forge xspec -y
+  -c threeml \
+  -c conda-forge \
+  xspec=12.15.1 python=3.12 threeml astromodels ipykernel pip -y
 ```
 
 **Timeout Workaround (If the above fails):**
 
 1. On your **local laptop** (not the server), download and transfer the file:
    ```bash
-   curl -L -o ~/xspec-13.1.0-hb0f4dca_0.conda "https://heasarc.gsfc.nasa.gov/FTP/software/conda/linux-64/xspec-13.1.0-hb0f4dca_0.conda"
-   scp ~/xspec-13.1.0-hb0f4dca_0.conda shashi@172.18.1.5:~/
+   curl -L -o ~/xspec-12.15.1-hb0f4dca_1.conda "https://heasarc.gsfc.nasa.gov/FTP/software/conda/linux-64/xspec-12.15.1-hb0f4dca_1.conda"
+   scp ~/xspec-12.15.1-hb0f4dca_1.conda shashi@172.18.1.5:~/
    ```
 2. On the **server**, place it in the cache so mamba skips the download:
    ```bash
    CACHE_DIR=$(conda info | grep "package cache" | head -1 | awk '{print $NF}')
    mkdir -p "$CACHE_DIR"
-   cp ~/xspec-13.1.0-hb0f4dca_0.conda "$CACHE_DIR/"
+   cp ~/xspec-12.15.1-hb0f4dca_1.conda "$CACHE_DIR/"
 
    mamba create -n threeML \
      --override-channels \
      -c https://heasarc.gsfc.nasa.gov/FTP/software/conda/ \
-     -c conda-forge xspec -y
+     -c threeml \
+     -c conda-forge \
+     xspec=12.15.1 python=3.12 threeml astromodels ipykernel pip -y
    ```
 
 > HEASoft + XSPEC install inside the environment at `~/miniforge3/envs/threeML/heasoft/`. No separate HEASoft compilation needed.
@@ -357,12 +364,11 @@ echo $HEADAS
 xspec --version
 ```
 
-Expected: `$HEADAS` prints the correct path, XSPEC launches (v12.15.1+).
+Expected: `$HEADAS` prints the correct path, XSPEC launches (v12.15.1).
 
-### 3.5 Install ThreeML and Astromodels
+### 3.5 Update / Reinstall ThreeML & Astromodels (If Needed)
 
-> [!WARNING]
-> Do **not** force a specific Python version (like `python=3.11`) here. XSPEC is built against a specific Python version (e.g., 3.14). Forcing a different one will cause Mamba to quietly delete XSPEC to resolve the conflict. Let the solver figure out the best compatible version.
+Because ThreeML and Astromodels were already installed in Step 3.1, this step is only needed if you ever want to update them:
 
 ```bash
 mamba install -n threeML \
@@ -392,9 +398,29 @@ conda deactivate && conda activate threeML
 
 ### 3.8 Install pynchrotron (Optional — For Synchrotron Modeling)
 
+> [!NOTE]
+> `pynchrotron` bundles an older `versioneer.py` using `configparser.SafeConfigParser` and `readfp`, which were removed in Python 3.12. We patch both functions before running `pip install`:
+
 ```bash
-mamba install -n threeML --override-channels -c conda-forge pip -y
-python -m pip install git+https://github.com/grburgess/pynchrotron.git
+# 1. Clone to temporary directory
+cd /tmp
+rm -rf /tmp/pynchrotron
+git clone --depth 1 https://github.com/grburgess/pynchrotron.git
+cd pynchrotron
+
+# 2. Patch the two removed functions for Python 3.12
+sed -i 's/SafeConfigParser/ConfigParser/g' versioneer.py
+sed -i 's/readfp/read_file/g' versioneer.py
+
+# 3. Install cleanly using the existing conda dependencies
+python -m pip install --no-build-isolation .
+
+# 4. Clean up temporary directory
+cd ~
+rm -rf /tmp/pynchrotron
+
+# 5. Verify import
+python -c "import pynchrotron; print('pynchrotron OK')"
 ```
 
 ### 3.9 Register the Jupyter Kernel
