@@ -71,6 +71,7 @@ source ~/.bashrc
 ```
 
 Verify both point to `/home/shashi/miniforge3`:
+
 ```bash
 conda env list
 mamba env list
@@ -150,18 +151,18 @@ def patch_elf_verneed(filepath):
             data = bytearray(f.read())
             if data[:4] != b"\x7fELF" or data[4] != 2:
                 return False
-                
+              
             e_shoff = struct.unpack("<Q", data[40:48])[0]
             e_shentsize = struct.unpack("<H", data[58:60])[0]
             e_shnum = struct.unpack("<H", data[60:62])[0]
             e_shstrndx = struct.unpack("<H", data[62:64])[0]
-            
+          
             if e_shstrndx >= e_shnum or e_shoff == 0:
                 return False
-                
+              
             shstr_hdr = e_shoff + e_shstrndx * e_shentsize
             shstr_offset = struct.unpack("<Q", data[shstr_hdr+24:shstr_hdr+32])[0]
-            
+          
             sections = {}
             for i in range(e_shnum):
                 hdr = e_shoff + i * e_shentsize
@@ -170,20 +171,20 @@ def patch_elf_verneed(filepath):
                 sh_size = struct.unpack("<Q", data[hdr+32:hdr+40])[0]
                 name = data[shstr_offset + sh_name_idx:].split(b"\x00")[0].decode("latin1", errors="ignore")
                 sections[name] = (sh_offset, sh_size)
-                
+              
             if ".gnu.version_r" not in sections or ".dynstr" not in sections:
                 return False
-                
+              
             dynstr_off, dynstr_size = sections[".dynstr"]
             verneed_off, verneed_size = sections[".gnu.version_r"]
-            
+          
             dynstr = data[dynstr_off : dynstr_off + dynstr_size]
             idx_227 = dynstr.find(b"GLIBC_2.27\x00")
             idx_225 = dynstr.find(b"GLIBC_2.2.5\x00")
-            
+          
             if idx_227 == -1 or idx_225 == -1:
                 return False
-                
+              
             hash_225 = 0x09691a75
             curr_vn = verneed_off
             modified = False
@@ -191,25 +192,25 @@ def patch_elf_verneed(filepath):
                 vn_cnt = struct.unpack("<H", data[curr_vn+2:curr_vn+4])[0]
                 vn_aux = struct.unpack("<I", data[curr_vn+8:curr_vn+12])[0]
                 vn_next = struct.unpack("<I", data[curr_vn+12:curr_vn+16])[0]
-                
+              
                 curr_vna = curr_vn + vn_aux
                 for _ in range(vn_cnt):
                     vna_name = struct.unpack("<I", data[curr_vna+8:curr_vna+12])[0]
                     vna_next = struct.unpack("<I", data[curr_vna+12:curr_vna+16])[0]
-                    
+                  
                     if vna_name == idx_227:
                         data[curr_vna : curr_vna+4] = struct.pack("<I", hash_225)
                         data[curr_vna+8 : curr_vna+12] = struct.pack("<I", idx_225)
                         modified = True
-                        
+                      
                     if vna_next == 0:
                         break
                     curr_vna += vna_next
-                    
+                  
                 if vn_next == 0:
                     break
                 curr_vn += vn_next
-                
+              
             if modified:
                 f.seek(0)
                 f.write(data)
@@ -521,32 +522,32 @@ conda deactivate
 
 ### General Issues
 
-| Error                                             | Fix                                                                       |
-| ------------------------------------------------- | ------------------------------------------------------------------------- |
-| `conda: command not found`                      | Run `bash` first, then `source ~/.bashrc`                              |
-| `#: Command not found` or `Badly placed ()'s` | You're in **csh** — run `bash` first, then retry                  |
-| `(base)` not showing                            | Close terminal, reopen, type `bash`                                      |
-| `terminals database is inaccessible`            | Run `echo 'export TERM=xterm-256color' >> ~/.bashrc && source ~/.bashrc` |
-| `conda` and `mamba` activate different envs     | Run `sed -i "s\|export MAMBA_ROOT_PREFIX=.*\|export MAMBA_ROOT_PREFIX='/home/shashi/miniforge3';\|" ~/.bashrc && exec bash` |
+| Error                                             | Fix                                                                                                                       |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `conda: command not found`                      | Run`bash` first, then `source ~/.bashrc`                                                                              |
+| `#: Command not found` or `Badly placed ()'s` | You're in**csh** — run `bash` first, then retry                                                                  |
+| `(base)` not showing                            | Close terminal, reopen, type`bash`                                                                                      |
+| `terminals database is inaccessible`            | Run`echo 'export TERM=xterm-256color' >> ~/.bashrc && source ~/.bashrc`                                                 |
+| `conda` and `mamba` activate different envs   | Run`sed -i "s\|export MAMBA_ROOT_PREFIX=.*\|export MAMBA_ROOT_PREFIX='/home/shashi/miniforge3';\|" ~/.bashrc && exec bash` |
 
 ### Mamba / Network Issues
 
-| Error                                                                | Cause                                                                              | Fix                                                                   |
-| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `Download error (28) Timeout was reached`                          | Institute firewall throttles parallel shard downloads                              | Run `conda config --set repodata_use_shards false` once, then retry  |
-| `Failed to download shard … Stopped by user request` after Ctrl+C | Ctrl+C interrupted shard downloads mid-flight, corrupting cache                    | Run `mamba clean --all -y` then retry the create command             |
-| `warning: 'repo.anaconda.com', a commercial channel … is used`    | Default channels from `~/.condarc` are being queried (slow, Anaconda TOS warning) | Add `--override-channels` flag to your mamba command                 |
+| Error                                                                | Cause                                                                              | Fix                                                                  |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `Download error (28) Timeout was reached`                          | Institute firewall throttles parallel shard downloads                              | Run`conda config --set repodata_use_shards false` once, then retry |
+| `Failed to download shard … Stopped by user request` after Ctrl+C | Ctrl+C interrupted shard downloads mid-flight, corrupting cache                    | Run`mamba clean --all -y` then retry the create command            |
+| `warning: 'repo.anaconda.com', a commercial channel … is used`    | Default channels from`~/.condarc` are being queried (slow, Anaconda TOS warning) | Add`--override-channels` flag to your mamba command                |
 
 ### Fermitools Issues
 
-| Error                                                                     | Fix                                                                                                                                                                                                 |
-| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GLIBC_2.27 not found` (`libLikelihood.so`)                             | Modern Fermitools (2.4.0+) requires `expf`/`logf` from GLIBC 2.27. Re-run Step 2.4 to apply the `.gnu.version_r` ELF patch to retarget them to `GLIBC_2.2.5` on CentOS 7.                         |
-| `_tkinter.TclError: no display name and no $DISPLAY environment variable` | GTBurst is a GUI application. Launch it from an **X2Go** session (XFCE) or connect with trusted X11 forwarding: `ssh -Y shashi@172.18.1.5`.                                                        |
-| `File __temp_ft1.fits does not exist!`                                  | Don't use GTBurst's built-in downloader — use `threeML` or download manually from [Fermi FSSC](https://fermi.gsfc.nasa.gov/cgi-bin/ssc/LAT/LATDataQuery.cgi), then use "Load User Data" in GTBurst |
-| `FITSFixedWarning: 'datfix' made the change…`                          | **Not an error** — Astropy auto-fixes Fermi metadata date fields                                                                                                                                     |
-| `CALDB/Alias Missing Error`                                             | You forgot to activate: run `conda activate fermi` before launching Python                                                                                                                         |
-| Permission denied on `gtapps_mp` scripts                                 | Re-run the patch from Step 2.4                                                                                                                                                                      |
+| Error                                                                       | Fix                                                                                                                                                                                                 |
+| --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GLIBC_2.27 not found` (`libLikelihood.so`)                             | Modern Fermitools (2.4.0+) requires`expf`/`logf` from GLIBC 2.27. Re-run Step 2.4 to apply the `.gnu.version_r` ELF patch to retarget them to `GLIBC_2.2.5` on CentOS 7.                    |
+| `_tkinter.TclError: no display name and no $DISPLAY environment variable` | GTBurst is a GUI application. Launch it from an**X2Go** session (XFCE) or connect with trusted X11 forwarding: `ssh -Y shashi@172.18.1.5`.                                                  |
+| `File __temp_ft1.fits does not exist!`                                    | Don't use GTBurst's built-in downloader — use`threeML` or download manually from [Fermi FSSC](https://fermi.gsfc.nasa.gov/cgi-bin/ssc/LAT/LATDataQuery.cgi), then use "Load User Data" in GTBurst |
+| `FITSFixedWarning: 'datfix' made the change…`                            | **Not an error** — Astropy auto-fixes Fermi metadata date fields                                                                                                                             |
+| `CALDB/Alias Missing Error`                                               | You forgot to activate: run`conda activate fermi` before launching Python                                                                                                                         |
+| Permission denied on`gtapps_mp` scripts                                   | Re-run the patch from Step 2.4                                                                                                                                                                      |
 
 ### 3ML / XSPEC Issues
 
