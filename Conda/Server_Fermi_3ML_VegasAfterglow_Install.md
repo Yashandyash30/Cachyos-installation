@@ -18,7 +18,7 @@ Comprehensive guide to install **Fermitools (+ GTBurst)**, **3ML (+ XSPEC)**, an
 
 ## Table of Contents
 
-1. [Prerequisites — Conda is Already Installed](#1-prerequisites--conda-is-already-installed)
+1. [Prerequisites — Miniforge3 is Installed](#1-prerequisites--miniforge3-is-installed)
 2. [Part A — Fermitools &amp; GTBurst](#2-part-a--fermitools--gtburst)
 3. [Part B — 3ML + XSPEC (Standalone Environment)](#3-part-b--3ml--xspec-standalone-environment)
 4. [Part C — VegasAfterglow](#4-part-c--vegasafterglow)
@@ -28,24 +28,12 @@ Comprehensive guide to install **Fermitools (+ GTBurst)**, **3ML (+ XSPEC)**, an
 
 ---
 
-## 1. Prerequisites — Conda is Already Installed
+## 1. Prerequisites — Miniforge3 is Installed
 
-The server already has **Anaconda 2021** installed at `~/anaconda3`. You do **not** need to install Miniforge or any other distribution.
-
-```
-# Confirmed conda environments on the server:
-base                  *  /home/shashi/anaconda3
-fermi                    /home/shashi/anaconda3/envs/fermi
-threeML                  /home/shashi/anaconda3/envs/threeML
-mosfit_env               /home/shashi/anaconda3/envs/mosfit_env
-```
+This guide assumes you have completely removed standard Anaconda and installed **Miniforge3** to `~/miniforge3`. Miniforge provides the lightning-fast `mamba` solver and uses the community `conda-forge` channel by default.
 
 > [!CAUTION]
-> **NEVER run `conda install` or `mamba install` into the `base` environment.** The Anaconda 2021 base is a monolithic install with hundreds of packages (bokeh, spyder, anaconda-navigator, etc.). Trying to modify it triggers an extremely slow solver that can hang for hours or fail with inconsistency errors.
-> All work must be done in **isolated named environments** created with `conda create`.
-
-> [!IMPORTANT]
-> **`mamba` is not installed on this server.** Use `conda` for all commands. The server uses standard Anaconda — `mamba` is not available unless explicitly installed (which we avoid to protect `base`).
+> **NEVER run `mamba install` or `conda install` into the `base` environment.** All work must be done in **isolated named environments** created with `mamba create`.
 
 ### 1.1 Always Switch to Bash First
 
@@ -55,31 +43,37 @@ The default shell is `/bin/csh`. Conda does **not** work in csh — `#` comments
 bash
 ```
 
-Your prompt will change from `[shashi@ARIES ~]$` with csh quirks to a clean bash prompt.
-**Every single conda command in this guide must be run inside bash.**
+Your prompt will change from `[shashi@ARIES ~]$` to a clean bash prompt.
+**Every single mamba/conda command in this guide must be run inside bash.**
 
-### 1.2 Verify Conda is Working
+### 1.2 Verify Conda & Mamba are Working
 
 ```bash
-conda env list
 conda --version
+mamba --version
 ```
 
-Expected: you should see `base`, `fermi`, `threeML`, `mosfit_env` listed, and a conda version number.
+### 1.3 Configure Conda for the Institute Network (Critical)
 
-### 1.3 Ensure ~/.local/bin is in PATH (for user-installed tools)
-
-Add to `~/.bashrc` so tools like `btop` work without full paths:
+The ARIES institute firewall throttles parallel shard downloads, causing `Download error (28) Timeout was reached` errors. Disable sharded repodata to use a stable single stream instead:
 
 ```bash
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+conda config --set repodata_use_shards false
+```
+
+### 1.4 Ensure Conda & Mamba are Synchronized (Critical)
+
+To prevent `mamba` and `conda` from creating environments in different paths (`~/.local/share/mamba` vs `~/miniforge3`), ensure `~/.bashrc` points `MAMBA_ROOT_PREFIX` to `~/miniforge3`:
+
+```bash
+sed -i "s|export MAMBA_ROOT_PREFIX=.*|export MAMBA_ROOT_PREFIX='/home/shashi/miniforge3';|" ~/.bashrc
 source ~/.bashrc
 ```
 
-And add to `~/.cshrc` for csh sessions:
-
-```csh
-echo 'setenv PATH "$HOME/.local/bin:$PATH"' >> ~/.cshrc
+Verify both point to `/home/shashi/miniforge3`:
+```bash
+conda env list
+mamba env list
 ```
 
 ---
@@ -90,16 +84,22 @@ echo 'setenv PATH "$HOME/.local/bin:$PATH"' >> ~/.cshrc
 
 ### 2.1 Create the Fermi Environment
 
-We lock Python to 3.9 and pin older `numpy`/`astropy` versions to prevent the modern Python ecosystem from breaking GTBurst's older scripts.
-
 > [!NOTE]
-> Use `conda create` directly — **not** `mamba create`. `mamba` is not available on this server. `conda create` is fast for new environments because it doesn't need to solve the bloated `base` environment.
+> Modern Fermitools (2.4.0+) installs with modern Python (3.11/3.12). Because older builds (like 2.2.0) were purged from the Conda channel, we install modern Fermitools alongside `patchelf`, and then apply a user-space patch in Step 2.4 to resolve CentOS 7's `GLIBC_2.27` requirement on `libLikelihood.so`.
 
 ```bash
-conda create -n fermi \
+mamba create -n fermi \
+  --override-channels \
   -c conda-forge \
   -c fermi \
-  fermitools=2.2.0 python=3.9 "numpy<1.24" "astropy<6.0" aplpy -y
+  fermitools aplpy patchelf -y
+```
+
+**If the command gets interrupted (Ctrl+C) and leaves a corrupted cache:**
+
+```bash
+mamba clean --all -y
+# Then re-run the create command above
 ```
 
 ### 2.2 Install 3ML & Fermipy into the Fermi Environment
@@ -107,7 +107,8 @@ conda create -n fermi \
 To perform advanced likelihood fitting (Bayesian blocks for prompt/extended GRB phases), install 3ML and Fermipy into the **same** environment:
 
 ```bash
-conda install -n fermi \
+mamba install -n fermi \
+  --override-channels \
   -c conda-forge \
   -c threeml \
   threeml fermipy jupyter ipykernel -y
@@ -121,25 +122,116 @@ conda activate fermi
 
 ### 2.4 Apply the Patch Script (Critical)
 
-Even with pinned packages, there are hardcoded bugs in the Fermitools install. With `fermi` activated, paste this entire block:
+Even with modern packages, there are hardcoded bugs in Fermitools and a GLIBC mismatch on CentOS 7 (`GLIBC 2.17` vs `GLIBC_2.27` for `expf`/`logf`). With `fermi` activated, paste this entire block:
 
 ```bash
 # 1. Fix permissions for multiprocessing scripts
-chmod +x $CONDA_PREFIX/lib/python3.9/site-packages/fermitools/GtBurst/gtapps_mp/*.py
+chmod +x $CONDA_PREFIX/lib/python3.*/site-packages/fermitools/GtBurst/gtapps_mp/*.py
 
 # 2. Fix Numpy float deprecation in Likelihood analysis
-sed -i 's/num.float/float/g' $CONDA_PREFIX/lib/python3.9/site-packages/fermitools/UnbinnedAnalysis.py
+sed -i 's/num.float/float/g' $CONDA_PREFIX/lib/python3.*/site-packages/fermitools/UnbinnedAnalysis.py
 
 # 3. Fix Aplpy plotting deprecations in the interactive display
-sed -i 's/set_tick_labels_font/tick_labels.set_font/g' $CONDA_PREFIX/lib/python3.9/site-packages/fermitools/GtBurst/commands/gtdolike.py
-sed -i 's/set_axis_labels_font/axis_labels.set_font/g' $CONDA_PREFIX/lib/python3.9/site-packages/fermitools/GtBurst/commands/gtdolike.py
-sed -i 's/show_grid/add_grid/g' $CONDA_PREFIX/lib/python3.9/site-packages/fermitools/GtBurst/commands/gtdolike.py
+sed -i 's/set_tick_labels_font/tick_labels.set_font/g' $CONDA_PREFIX/lib/python3.*/site-packages/fermitools/GtBurst/commands/gtdolike.py
+sed -i 's/set_axis_labels_font/axis_labels.set_font/g' $CONDA_PREFIX/lib/python3.*/site-packages/fermitools/GtBurst/commands/gtdolike.py
+sed -i 's/show_grid/add_grid/g' $CONDA_PREFIX/lib/python3.*/site-packages/fermitools/GtBurst/commands/gtdolike.py
+
+# 4. Clear symbol version constraints on libLikelihood.so
+patchelf --clear-symbol-version expf $CONDA_PREFIX/lib/libLikelihood.so 2>/dev/null || true
+patchelf --clear-symbol-version logf $CONDA_PREFIX/lib/libLikelihood.so 2>/dev/null || true
+
+# 5. Patch .gnu.version_r table in libLikelihood.so for CentOS 7 GLIBC 2.17 compatibility
+python3 << 'EOF'
+import os, struct
+
+def patch_elf_verneed(filepath):
+    try:
+        with open(filepath, "r+b") as f:
+            data = bytearray(f.read())
+            if data[:4] != b"\x7fELF" or data[4] != 2:
+                return False
+                
+            e_shoff = struct.unpack("<Q", data[40:48])[0]
+            e_shentsize = struct.unpack("<H", data[58:60])[0]
+            e_shnum = struct.unpack("<H", data[60:62])[0]
+            e_shstrndx = struct.unpack("<H", data[62:64])[0]
+            
+            if e_shstrndx >= e_shnum or e_shoff == 0:
+                return False
+                
+            shstr_hdr = e_shoff + e_shstrndx * e_shentsize
+            shstr_offset = struct.unpack("<Q", data[shstr_hdr+24:shstr_hdr+32])[0]
+            
+            sections = {}
+            for i in range(e_shnum):
+                hdr = e_shoff + i * e_shentsize
+                sh_name_idx = struct.unpack("<I", data[hdr:hdr+4])[0]
+                sh_offset = struct.unpack("<Q", data[hdr+24:hdr+32])[0]
+                sh_size = struct.unpack("<Q", data[hdr+32:hdr+40])[0]
+                name = data[shstr_offset + sh_name_idx:].split(b"\x00")[0].decode("latin1", errors="ignore")
+                sections[name] = (sh_offset, sh_size)
+                
+            if ".gnu.version_r" not in sections or ".dynstr" not in sections:
+                return False
+                
+            dynstr_off, dynstr_size = sections[".dynstr"]
+            verneed_off, verneed_size = sections[".gnu.version_r"]
+            
+            dynstr = data[dynstr_off : dynstr_off + dynstr_size]
+            idx_227 = dynstr.find(b"GLIBC_2.27\x00")
+            idx_225 = dynstr.find(b"GLIBC_2.2.5\x00")
+            
+            if idx_227 == -1 or idx_225 == -1:
+                return False
+                
+            hash_225 = 0x09691a75
+            curr_vn = verneed_off
+            modified = False
+            while curr_vn and (curr_vn < verneed_off + verneed_size):
+                vn_cnt = struct.unpack("<H", data[curr_vn+2:curr_vn+4])[0]
+                vn_aux = struct.unpack("<I", data[curr_vn+8:curr_vn+12])[0]
+                vn_next = struct.unpack("<I", data[curr_vn+12:curr_vn+16])[0]
+                
+                curr_vna = curr_vn + vn_aux
+                for _ in range(vn_cnt):
+                    vna_name = struct.unpack("<I", data[curr_vna+8:curr_vna+12])[0]
+                    vna_next = struct.unpack("<I", data[curr_vna+12:curr_vna+16])[0]
+                    
+                    if vna_name == idx_227:
+                        data[curr_vna : curr_vna+4] = struct.pack("<I", hash_225)
+                        data[curr_vna+8 : curr_vna+12] = struct.pack("<I", idx_225)
+                        modified = True
+                        
+                    if vna_next == 0:
+                        break
+                    curr_vna += vna_next
+                    
+                if vn_next == 0:
+                    break
+                curr_vn += vn_next
+                
+            if modified:
+                f.seek(0)
+                f.write(data)
+                print(f"[PATCHED] {filepath}")
+                return True
+    except Exception as e:
+        pass
+    return False
+
+env_prefix = os.environ.get("CONDA_PREFIX", "")
+if env_prefix:
+    for root, dirs, files in os.walk(env_prefix):
+        for f in files:
+            if f.endswith(".so") or ".so." in f:
+                patch_elf_verneed(os.path.join(root, f))
+EOF
 ```
 
 ### 2.5 Install Fermi GBM Data Tools (Optional)
 
 ```bash
-conda install pip -y
+mamba install -n fermi --override-channels -c conda-forge pip -y
 pip install astro-gdt astro-gdt-fermi
 ```
 
@@ -183,13 +275,38 @@ python -c "import fermipy; print('Fermipy OK')"
 
 ### 3.1 Create the Environment with XSPEC
 
+> [!WARNING]
+> The HEASARC server is notoriously slow and frequently times out on this institute's firewall. If the `mamba create` command below fails with a "Timeout was reached (28)" error, you MUST download the package on your local laptop and SCP it to the server (see workaround below).
+
+**Standard Installation:**
+
 ```bash
-conda create -n threeML \
+mamba create -n threeML \
+  --override-channels \
   -c https://heasarc.gsfc.nasa.gov/FTP/software/conda/ \
   -c conda-forge xspec -y
 ```
 
-> HEASoft + XSPEC install inside the environment at `~/anaconda3/envs/threeML/heasoft/`. No separate HEASoft compilation needed.
+**Timeout Workaround (If the above fails):**
+
+1. On your **local laptop** (not the server), download and transfer the file:
+   ```bash
+   curl -L -o ~/xspec-13.1.0-hb0f4dca_0.conda "https://heasarc.gsfc.nasa.gov/FTP/software/conda/linux-64/xspec-13.1.0-hb0f4dca_0.conda"
+   scp ~/xspec-13.1.0-hb0f4dca_0.conda shashi@172.18.1.5:~/
+   ```
+2. On the **server**, place it in the cache so mamba skips the download:
+   ```bash
+   CACHE_DIR=$(conda info | grep "package cache" | head -1 | awk '{print $NF}')
+   mkdir -p "$CACHE_DIR"
+   cp ~/xspec-13.1.0-hb0f4dca_0.conda "$CACHE_DIR/"
+
+   mamba create -n threeML \
+     --override-channels \
+     -c https://heasarc.gsfc.nasa.gov/FTP/software/conda/ \
+     -c conda-forge xspec -y
+   ```
+
+> HEASoft + XSPEC install inside the environment at `~/miniforge3/envs/threeML/heasoft/`. No separate HEASoft compilation needed.
 
 ### 3.2 Fix the Broken `heainit.sh` ⚠️ CRITICAL
 
@@ -199,25 +316,25 @@ Replace `shashi` with your actual username (run `whoami` if unsure):
 
 ```bash
 sed -i \
-  's|export HEADAS=$CONDA_PREFIX/heasoft|export HEADAS=/home/shashi/anaconda3/envs/threeML/heasoft|' \
-  ~/anaconda3/envs/threeML/etc/conda/activate.d/heainit.sh
+  's|export HEADAS=$CONDA_PREFIX/heasoft|export HEADAS=/home/shashi/miniforge3/envs/threeML/heasoft|' \
+  ~/miniforge3/envs/threeML/etc/conda/activate.d/heainit.sh
 
 sed -i \
   's|$HEADAS/BUILD_DIR/headas-init.sh|$HEADAS/headas-init.sh|' \
-  ~/anaconda3/envs/threeML/etc/conda/activate.d/heainit.sh
+  ~/miniforge3/envs/threeML/etc/conda/activate.d/heainit.sh
 ```
 
 Verify the fix:
 
 ```bash
-cat ~/anaconda3/envs/threeML/etc/conda/activate.d/heainit.sh
+cat ~/miniforge3/envs/threeML/etc/conda/activate.d/heainit.sh
 ```
 
 Expected output:
 
 ```
 #!/bin/bash
-export HEADAS=/home/shashi/anaconda3/envs/threeML/heasoft
+export HEADAS=/home/shashi/miniforge3/envs/threeML/heasoft
 echo "activating heasoft in $HEADAS"
 source $HEADAS/headas-init.sh
 ```
@@ -227,8 +344,8 @@ source $HEADAS/headas-init.sh
 Only if conda doesn't recognize the environment (`DirectoryNotACondaEnvironmentError`):
 
 ```bash
-mkdir -p ~/anaconda3/envs/threeML/conda-meta
-echo "# Created by manual fix" > ~/anaconda3/envs/threeML/conda-meta/history
+mkdir -p ~/miniforge3/envs/threeML/conda-meta
+echo "# Created by manual fix" > ~/miniforge3/envs/threeML/conda-meta/history
 ```
 
 ### 3.4 Activate & Verify XSPEC
@@ -241,11 +358,17 @@ xspec --version
 
 Expected: `$HEADAS` prints the correct path, XSPEC launches (v12.15.1+).
 
-### 3.5 Install Python 3.11 + ThreeML
+### 3.5 Install ThreeML and Astromodels
+
+> [!WARNING]
+> Do **not** force a specific Python version (like `python=3.11`) here. XSPEC is built against a specific Python version (e.g., 3.14). Forcing a different one will cause Mamba to quietly delete XSPEC to resolve the conflict. Let the solver figure out the best compatible version.
 
 ```bash
-conda install -c conda-forge python=3.11
-conda install -c threeml -c conda-forge astromodels threeml
+mamba install -n threeML \
+  --override-channels \
+  -c conda-forge \
+  -c threeml \
+  threeml astromodels -y
 ```
 
 > If a `ucx` error fires, reapply the Step 3.2 fix and retry.
@@ -269,14 +392,14 @@ conda deactivate && conda activate threeML
 ### 3.8 Install pynchrotron (Optional — For Synchrotron Modeling)
 
 ```bash
-conda install pip -y
+mamba install -n threeML --override-channels -c conda-forge pip -y
 python -m pip install git+https://github.com/grburgess/pynchrotron.git
 ```
 
 ### 3.9 Register the Jupyter Kernel
 
 ```bash
-conda install -c conda-forge ipykernel
+mamba install -n threeML --override-channels -c conda-forge ipykernel -y
 python -m ipykernel install --user --name threeML --display-name "Python (threeML)"
 ```
 
@@ -289,14 +412,26 @@ VegasAfterglow is a GRB afterglow modeling engine with MCMC support. On the serv
 ### 4.1 Create the VegasAfterglow Environment
 
 ```bash
-conda create -n vegas_env python=3.11 -y
+mamba create -n vegas_env \
+  --override-channels \
+  -c conda-forge \
+  python=3.11 -y
 conda activate vegas_env
 ```
 
-### 4.2 Install the Physics Engine with MCMC Tools
+### 4.2 Install Dependencies and the Physics Engine
+
+> [!IMPORTANT]
+> Because CentOS 7 has ancient compilers, installing `scipy` via `pip` will fail to compile. We must pre-install the heavy math and MCMC dependencies using `mamba` first.
 
 ```bash
-conda install pip -y
+# 1. Pre-install pip and heavy dependencies via conda-forge
+mamba install -n vegas_env \
+  --override-channels \
+  -c conda-forge \
+  pip scipy numpy bilby emcee dynesty corner matplotlib -y
+
+# 2. Install VegasAfterglow (pip will skip compiling the dependencies above)
 python -m pip install VegasAfterglow[mcmc]
 ```
 
@@ -306,7 +441,7 @@ python -m pip install VegasAfterglow[mcmc]
 ### 4.3 Register the Jupyter Kernel
 
 ```bash
-conda install conda-forge::ipykernel -y
+mamba install -n vegas_env --override-channels -c conda-forge ipykernel -y
 python -m ipykernel install --user --name=vegas_env --display-name="Python (VegasAfterglow)"
 ```
 
@@ -322,11 +457,11 @@ python -c "import VegasAfterglow; print('VegasAfterglow OK')"
 
 After completing the installations above, you should have three Jupyter kernels available:
 
-| Kernel Display Name     | Conda Environment | What It Contains                        |
-| ----------------------- | ----------------- | --------------------------------------- |
-| Python (fermi)          | `fermi`         | Fermitools 2.2.0, GTBurst, 3ML, Fermipy |
-| Python (threeML)        | `threeML`       | XSPEC, HEASoft, 3ML, astromodels        |
-| Python (VegasAfterglow) | `vegas_env`     | VegasAfterglow + MCMC tools             |
+| Kernel Display Name     | Conda Environment | What It Contains                                  |
+| ----------------------- | ----------------- | ------------------------------------------------- |
+| Python (fermi)          | `fermi`         | Fermitools (CentOS-compat), GTBurst, 3ML, Fermipy |
+| Python (threeML)        | `threeML`       | XSPEC, HEASoft, 3ML, astromodels                  |
+| Python (VegasAfterglow) | `vegas_env`     | VegasAfterglow + MCMC tools                       |
 
 ### Launching Jupyter on the Server
 
@@ -386,30 +521,32 @@ conda deactivate
 
 ### General Issues
 
-| Error                                             | Fix                                                                          |
-| ------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `conda: command not found`                      | Run`bash` first, then `source ~/.bashrc`                                 |
-| `#: Command not found` or `Badly placed ()'s` | You're in**csh** — run `bash` first, then retry                     |
-| `mamba: command not found`                      | **Expected** — mamba is not installed. Use `conda` for all commands |
-| `(base)` not showing                            | Close terminal, reopen, type`bash`                                         |
-| `terminals database is inaccessible`            | Run`echo 'export TERM=xterm-256color' >> ~/.bashrc && source ~/.bashrc`    |
+| Error                                             | Fix                                                                       |
+| ------------------------------------------------- | ------------------------------------------------------------------------- |
+| `conda: command not found`                      | Run `bash` first, then `source ~/.bashrc`                              |
+| `#: Command not found` or `Badly placed ()'s` | You're in **csh** — run `bash` first, then retry                  |
+| `(base)` not showing                            | Close terminal, reopen, type `bash`                                      |
+| `terminals database is inaccessible`            | Run `echo 'export TERM=xterm-256color' >> ~/.bashrc && source ~/.bashrc` |
+| `conda` and `mamba` activate different envs     | Run `sed -i "s\|export MAMBA_ROOT_PREFIX=.*\|export MAMBA_ROOT_PREFIX='/home/shashi/miniforge3';\|" ~/.bashrc && exec bash` |
 
-### Critical: Never Modify Base
+### Mamba / Network Issues
 
-| Symptom                                     | Cause                                                              | Fix                                                       |
-| ------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------- |
-| `conda install -n base` hangs for hours   | Anaconda 2021 base has 60+ pinned packages — solver can't resolve | `Ctrl+C` immediately, **never install into base** |
-| `The environment is inconsistent` warning | Old Anaconda base with mixed channel packages                      | Ignore, never try to fix base — use isolated envs only   |
-| Solver very slow even for new envs          | Channel priority not set                                           | Run`conda config --set channel_priority strict`         |
+| Error                                                                | Cause                                                                              | Fix                                                                   |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `Download error (28) Timeout was reached`                          | Institute firewall throttles parallel shard downloads                              | Run `conda config --set repodata_use_shards false` once, then retry  |
+| `Failed to download shard … Stopped by user request` after Ctrl+C | Ctrl+C interrupted shard downloads mid-flight, corrupting cache                    | Run `mamba clean --all -y` then retry the create command             |
+| `warning: 'repo.anaconda.com', a commercial channel … is used`    | Default channels from `~/.condarc` are being queried (slow, Anaconda TOS warning) | Add `--override-channels` flag to your mamba command                 |
 
 ### Fermitools Issues
 
-| Error                                            | Fix                                                                                                                                                                                                 |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `File __temp_ft1.fits does not exist!`         | Don't use GTBurst's built-in downloader — use`threeML` or download manually from [Fermi FSSC](https://fermi.gsfc.nasa.gov/cgi-bin/ssc/LAT/LATDataQuery.cgi), then use "Load User Data" in GTBurst |
-| `FITSFixedWarning: 'datfix' made the change…` | **Not an error** — Astropy auto-fixes Fermi metadata date fields                                                                                                                             |
-| `CALDB/Alias Missing Error`                    | You forgot to activate: run`conda activate fermi` before launching Python                                                                                                                         |
-| Permission denied on`gtapps_mp` scripts        | Re-run the patch from Step 2.4                                                                                                                                                                      |
+| Error                                                                     | Fix                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GLIBC_2.27 not found` (`libLikelihood.so`)                             | Modern Fermitools (2.4.0+) requires `expf`/`logf` from GLIBC 2.27. Re-run Step 2.4 to apply the `.gnu.version_r` ELF patch to retarget them to `GLIBC_2.2.5` on CentOS 7.                         |
+| `_tkinter.TclError: no display name and no $DISPLAY environment variable` | GTBurst is a GUI application. Launch it from an **X2Go** session (XFCE) or connect with trusted X11 forwarding: `ssh -Y shashi@172.18.1.5`.                                                        |
+| `File __temp_ft1.fits does not exist!`                                  | Don't use GTBurst's built-in downloader — use `threeML` or download manually from [Fermi FSSC](https://fermi.gsfc.nasa.gov/cgi-bin/ssc/LAT/LATDataQuery.cgi), then use "Load User Data" in GTBurst |
+| `FITSFixedWarning: 'datfix' made the change…`                          | **Not an error** — Astropy auto-fixes Fermi metadata date fields                                                                                                                                     |
+| `CALDB/Alias Missing Error`                                             | You forgot to activate: run `conda activate fermi` before launching Python                                                                                                                         |
+| Permission denied on `gtapps_mp` scripts                                 | Re-run the patch from Step 2.4                                                                                                                                                                      |
 
 ### 3ML / XSPEC Issues
 
@@ -422,14 +559,14 @@ conda deactivate
 
 ### Maintenance
 
-| Task                            | Command                                                                          |
-| ------------------------------- | -------------------------------------------------------------------------------- |
-| Update Fermitools               | `conda update fermitools -c conda-forge -c fermi -y` (re-patch Step 2.4 after) |
-| Update 3ML                      | `conda update -c threeml -c conda-forge threeml astromodels -y`                |
-| Update VegasAfterglow           | `conda activate vegas_env && pip install --upgrade VegasAfterglow[mcmc]`       |
-| Delete broken environment       | `conda env remove -n <env_name>` and redo from scratch                         |
-| List all environments           | `conda env list`                                                               |
-| Clean package cache (save disk) | `conda clean --all -y`                                                         |
+| Task                      | Command                                                                                                       |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Update Fermitools         | `mamba update -n fermi --override-channels -c conda-forge -c fermi fermitools -y` (re-patch Step 2.4 after) |
+| Update 3ML                | `mamba update -n threeML --override-channels -c threeml -c conda-forge threeml astromodels -y`              |
+| Update VegasAfterglow     | `conda activate vegas_env && pip install --upgrade VegasAfterglow[mcmc]`                                    |
+| Delete broken environment | `mamba env remove -n <env_name>` and redo from scratch                                                      |
+| List all environments     | `conda env list`                                                                                            |
+| Clean mamba cache         | `mamba clean --all -y`                                                                                      |
 
 ---
 
