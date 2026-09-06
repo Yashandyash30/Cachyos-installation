@@ -89,19 +89,25 @@ niri msg output <OUTPUT_NAME> mode <WIDTH>x<HEIGHT>@<REFRESH_RATE>
 Sunshine can automatically detect the FPS that Moonlight requests, switch the host display to match it upon connection, and restore 100 Hz when the session ends.
 
 1. Open the Sunshine Web UI on your Host PC: `https://localhost:47990`
-2. Navigate to **Applications** → click **Edit** on your **Desktop** application.
+2. Navigate to **Applications** → click **Edit** on your **Smart-Desktop** (or **Desktop**) application.
 3. Configure the **Command Preparation** fields:
 
 * **Do Command (Runs automatically when Moonlight connects):**
 
   ```bash
-  sh -c "export NIRI_SOCKET=\$(echo /run/user/1000/niri.*.sock); niri msg output HDMI-A-2 mode 1920x1080@\${SUNSHINE_CLIENT_FPS}.000 || niri msg output HDMI-A-2 mode 1920x1080@60.000"
+  sh -c "export NIRI_SOCKET=$(echo /run/user/1000/niri.*.sock); niri msg output HDMI-A-2 mode 1920x1080@${SUNSHINE_CLIENT_FPS}.000 || niri msg output HDMI-A-2 mode 1920x1080@60.000 || true"
   ```
 * **Undo Command (Runs automatically when Moonlight disconnects):**
 
   ```bash
-  sh -c "export NIRI_SOCKET=\$(echo /run/user/1000/niri.*.sock); niri msg output HDMI-A-2 mode 1920x1080@100.000"
+  sh -c "export NIRI_SOCKET=$(echo /run/user/1000/niri.*.sock); niri msg output HDMI-A-2 mode 1920x1080@100.000 || true"
   ```
+
+> [!WARNING]
+> **Do not escape the `$` symbol with `\`!**
+> Enter `$(echo ...)` and `${SUNSHINE_CLIENT_FPS}` exactly as shown without a preceding backslash. If escaped (`\$`), Sunshine's Boost command parser treats it as an invalid escape sequence, corrupts `NIRI_SOCKET`, and Moonlight will throw:
+> `Host returned error: Failed to start the specified application (Error 0)`.
+
 
 4. Click **Save** at the bottom.
 
@@ -208,12 +214,17 @@ If you are streaming your laptop's screen to another device and want Sunshine to
 2. Go to **Applications** → **Desktop** → **Edit**.
 3. Set **Do Command**:
    ```bash
-   sh -c "export NIRI_SOCKET=\$(echo /run/user/1000/niri.*.sock); niri msg output HDMI-A-1 mode 1920x1080@\${SUNSHINE_CLIENT_FPS}.000 || niri msg output HDMI-A-1 mode 1920x1080@60.000"
+   sh -c "export NIRI_SOCKET=$(echo /run/user/1000/niri.*.sock); niri msg output HDMI-A-1 mode 1920x1080@${SUNSHINE_CLIENT_FPS}.000 || niri msg output HDMI-A-1 mode 1920x1080@60.000 || true"
    ```
 4. Set **Undo Command**:
    ```bash
-   sh -c "export NIRI_SOCKET=\$(echo /run/user/1000/niri.*.sock); niri msg output HDMI-A-1 mode 1920x1080@120.000"
+   sh -c "export NIRI_SOCKET=$(echo /run/user/1000/niri.*.sock); niri msg output HDMI-A-1 mode 1920x1080@120.000 || true"
    ```
+
+> [!WARNING]
+> **Do not escape the `$` symbol with `\`!**
+> In Sunshine Web UI text boxes, paste `$(echo ...)` and `${SUNSHINE_CLIENT_FPS}` directly. Escaping them (`\$`) breaks Boost parsing and causes Error 0.
+
 
 ---
 
