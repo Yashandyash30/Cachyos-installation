@@ -1,0 +1,20 @@
+Host surya
+    HostName 192.168.4.1
+    User yashsharma
+    IdentityFile ~/.ssh/id_ed25519
+
+Host aries
+    HostName 172.18.1.5
+    User shashi
+    IdentityFile ~/.ssh/id_ed25519
+    ForwardX11 yes
+
+Host laptop
+    HostName 100.70.236.70
+    User void
+    IdentityFile ~/.ssh/id_ed25519
+
+Host pc voidpc
+    HostName 100.117.73.75
+    User void
+    IdentityFile ~/.ssh/id_ed25519

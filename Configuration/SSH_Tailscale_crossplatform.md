@@ -293,14 +293,19 @@ function checkmonitors {
 ### From a Linux Laptop (Fish)
 
 * Type `sshpc` — auto-wakes the PC if needed, then connects.
+* Type `sshsurya` — connects directly to Surya HPC (`192.168.4.1`).
+* Type `ssharies` — connects directly to ARIES server (`172.18.1.5`).
 * Type `fixstream` — recovers crashed Moonlight streams.
 * Type `phonebattery` — checks voidphone battery level.
 * Type `transfer pc <file>` — sends files to your PC over Tailscale with live progress.
 * Type `transfer surya <file>` — sends scientific datasets/archives to Surya HPC.
+* Type `transfer aries <file>` — sends files to ARIES server.
 
 ### From a Windows Laptop (PowerShell)
 
 * Type `sshpc` — identical behavior: auto-wakes, waits, and connects.
+* Type `sshsurya` — connects to Surya HPC cluster.
+* Type `ssharies` — connects to ARIES CentOS server.
 * Type `fixstream` — same stream recovery over Tailscale.
 * Type `phonebattery` — same phone battery check via Termux API.
 * Type `wakepc` — sends a standalone Wake-on-LAN packet.
@@ -309,6 +314,8 @@ function checkmonitors {
 ### From your PC (Fish)
 
 * Type `sshlaptop` — instantly drops into your laptop's terminal.
+* Type `sshsurya` — connects directly to Surya HPC (`192.168.4.1`).
+* Type `ssharies` — connects directly to ARIES server (`172.18.1.5`).
 * Type `transfer laptop <file>` — sends files to your Laptop over Tailscale.
 * Type `transfer surya <file>` — sends files directly to Surya HPC.
 * Type `transfer aries <file>` — sends files to the ARIES server.
@@ -325,13 +332,13 @@ Surya is the high-performance computing cluster at ARIES (Aryabhatta Research In
 
 ### Cluster Details
 
-| Setting | Value |
-| :--- | :--- |
-| **Internal IP** | `192.168.4.1` |
-| **Hostname** | `surya` / `surya.aries.res.in` |
-| **Default User** | `yashsharma` |
-| **Default Shell** | `bash` |
-| **Desktop Environment** | `XFCE` (`/usr/bin/xfce4-session`) |
+| Setting                         | Value                                         |
+| :------------------------------ | :-------------------------------------------- |
+| **Internal IP**           | `192.168.4.1`                               |
+| **Hostname**              | `surya` / `surya.aries.res.in`            |
+| **Default User**          | `yashsharma`                                |
+| **Default Shell**         | `bash`                                      |
+| **Desktop Environment**   | `XFCE` (`/usr/bin/xfce4-session`)         |
 | **Remote Desktop Server** | `X2Go Server` (`/usr/bin/x2gostartagent`) |
 
 > [!NOTE]
@@ -409,7 +416,55 @@ To run an interactive desktop session (XFCE) over the network:
 
 ---
 
-## Phase 6: Universal Cross-Machine File Transfer Function (`transfer`)
+## Phase 6: ARIES Server (`172.18.1.5`) Configuration
+
+ARIES is the scientific analysis server (CentOS 7, 40 threads, 256 GB RAM) hosting Fermitools, 3ML, XSPEC, and VegasAfterglow pipelines.
+
+### 1. Passwordless SSH Setup
+
+Copy your local SSH public key to ARIES:
+
+```bash
+ssh-copy-id shashi@172.18.1.5
+```
+
+*(Enter `Aries#123$` one last time).*
+
+### 2. OpenSSH Client Host Configuration (`~/.ssh/config`)
+
+Configured in `~/.ssh/config`:
+
+```ssh
+Host aries
+    HostName 172.18.1.5
+    User shashi
+    IdentityFile ~/.ssh/id_ed25519
+    ForwardX11 yes
+```
+
+### 3. Fish Shell Function (`ssharies`)
+
+Installed at `~/.config/fish/functions/ssharies.fish` on both PC and Laptop:
+
+```fish
+function ssharies --description 'SSH into ARIES server'
+    ssh shashi@172.18.1.5 $argv
+end
+```
+
+### 4. Windows PowerShell Function (`ssharies`)
+
+Add this function to `$PROFILE` on your Windows laptop:
+
+```powershell
+function ssharies {
+    ssh shashi@172.18.1.5 $args
+}
+```
+
+---
+
+## Phase 7: Universal Cross-Machine File Transfer Function (`transfer`)
 
 The `transfer` function provides a unified command across all your machines (PC, Laptop, Surya HPC, and ARIES) using `rsync` over SSH. It displays a real-time progress bar, transfer rate, supports resuming interrupted downloads, and handles single or multiple files in batches.
 
@@ -496,16 +551,14 @@ complete -c transfer -n "not __fish_is_first_arg" -F
 
 ### 3. Usage Reference Table
 
-| Command Example | Source | Target Host | Default Destination | Key Use Case |
-| :--- | :--- | :--- | :--- | :--- |
-| `transfer surya <file>` | PC / Laptop | Surya HPC (`192.168.4.1`) | `~/` | Transfer MESA archives, simulation datasets, or scripts to Surya |
-| `transfer surya <f1> <f2>` | PC / Laptop | Surya HPC (`192.168.4.1`) | `~/` | Batch transfer multiple files in a single operation |
-| `transfer surya <file> MESA/` | PC / Laptop | Surya HPC (`192.168.4.1`) | `~/MESA/` | Transfer directly into a specific folder on Surya |
-| `transfer laptop <file>` | PC | Laptop (`100.70.236.70`) | `~/` | Transfer documents or code to Laptop over Tailscale |
-| `transfer pc <file>` | Laptop | PC (`100.117.73.75`) | `~/` | Transfer files to PC over Tailscale (LAN speed when on same WiFi) |
-| `transfer aries <file>` | PC / Laptop | ARIES Server (`172.18.1.5`) | `~/` | Transfer Fermi / 3ML fits files to ARIES CentOS server |
+| Command Example                 | Source      | Target Host                   | Default Destination | Key Use Case                                                      |
+| :------------------------------ | :---------- | :---------------------------- | :------------------ | :---------------------------------------------------------------- |
+| `transfer surya <file>`       | PC / Laptop | Surya HPC (`192.168.4.1`)   | `~/`              | Transfer MESA archives, simulation datasets, or scripts to Surya  |
+| `transfer surya <f1> <f2>`    | PC / Laptop | Surya HPC (`192.168.4.1`)   | `~/`              | Batch transfer multiple files in a single operation               |
+| `transfer surya <file> MESA/` | PC / Laptop | Surya HPC (`192.168.4.1`)   | `~/MESA/`         | Transfer directly into a specific folder on Surya                 |
+| `transfer laptop <file>`      | PC          | Laptop (`100.70.236.70`)    | `~/`              | Transfer documents or code to Laptop over Tailscale               |
+| `transfer pc <file>`          | Laptop      | PC (`100.117.73.75`)        | `~/`              | Transfer files to PC over Tailscale (LAN speed when on same WiFi) |
+| `transfer aries <file>`       | PC / Laptop | ARIES Server (`172.18.1.5`) | `~/`              | Transfer Fermi / 3ML fits files to ARIES CentOS server            |
 
 > [!TIP]
 > `transfer` automatically runs with `rsync -ahP`. If a transfer is ever interrupted (e.g. WiFi drops or terminal closes), simply re-run the exact same command to resume from where it stopped without restarting from 0%.
-
-

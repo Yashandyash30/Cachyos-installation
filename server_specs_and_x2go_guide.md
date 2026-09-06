@@ -210,3 +210,88 @@ If you see strange escape codes like `[>4;1m` or overlapping/squished text:
    FontUseSystem=FALSE
    ```
    Opening a new terminal window will now display a clean, properly spaced monospace font.
+
+---
+
+## 5. Remote File Browsing via Dolphin (KDE Network / Remote Location)
+
+To access files on the ARIES CentOS server without mounting it to your local disk or cluttering `~/`, you can register it as an on-demand **Remote** network location in KDE Dolphin.
+
+### 5.1 Local Configuration (PC & Laptop)
+
+KDE stores remote network entries in `~/.local/share/remoteview/`. Create `~/.local/share/remoteview/ARIES.desktop`:
+
+```ini
+[Desktop Entry]
+Icon=folder-remote
+Name=ARIES Server
+Type=Link
+URL=sftp://shashi@172.18.1.5/home/shashi
+```
+
+Setup command:
+```bash
+mkdir -p ~/.local/share/remoteview
+cat << 'EOF' > ~/.local/share/remoteview/ARIES.desktop
+[Desktop Entry]
+Icon=folder-remote
+Name=ARIES Server
+Type=Link
+URL=sftp://shashi@172.18.1.5/home/shashi
+EOF
+```
+
+To sync to your Laptop over Tailscale:
+```bash
+scp ~/.local/share/remoteview/ARIES.desktop void@100.70.236.70:~/.local/share/remoteview/
+```
+
+### 5.2 How to Access & Pin in Dolphin
+
+1. **View in Network:** Open Dolphin ➔ Under the **Remote** section in the left sidebar, click **Network** (`remote:/`). **ARIES Server** will appear with a network folder icon.
+2. **One-Click Sidebar Access:** Right-click **"ARIES Server"** ➔ Click **"Add to Places"** ➔ Drag the bookmark directly under the **"Remote"** header in Dolphin's sidebar.
+
+---
+
+## 6. Passwordless SSH & Connection Shortcut (`ssharies`)
+
+To connect to ARIES without typing your password each time:
+
+### 6.1 Install SSH Public Key to ARIES (One-Time Setup)
+
+Run from your local PC or Laptop terminal:
+```bash
+ssh-copy-id shashi@172.18.1.5
+```
+*(Enter your ARIES account password `Aries#123$` one last time).*
+
+### 6.2 Fish Shell Function (`ssharies`)
+
+This function is installed on both your **PC** and **Laptop** (`~/.config/fish/functions/ssharies.fish`):
+
+```fish
+function ssharies --description 'SSH into ARIES server'
+    ssh shashi@172.18.1.5 $argv
+end
+```
+
+### 6.3 OpenSSH Client Config (`~/.ssh/config`)
+
+Your `~/.ssh/config` has also been configured with:
+```ssh
+Host aries
+    HostName 172.18.1.5
+    User shashi
+    IdentityFile ~/.ssh/id_ed25519
+    ForwardX11 yes
+```
+
+Now you can connect directly with:
+```bash
+ssharies
+# or
+ssh aries
+```
+*(Any arguments passed, such as `ssharies -Y` or `ssharies "free -h"`, are automatically forwarded).*
+
+

@@ -1,0 +1,5 @@
+[Desktop Entry]
+Icon=folder-remote
+Name=ARIES Server
+Type=Link
+URL=sftp://shashi@172.18.1.5/home/shashi

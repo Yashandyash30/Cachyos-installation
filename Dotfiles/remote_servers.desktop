@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Service
+MimeType=inode/directory;
+Actions=OpenSuryaTerminal;OpenARIESterminal;
+X-KDE-Priority=TopLevel
+
+[Desktop Action OpenSuryaTerminal]
+Name=Open Surya HPC Terminal Here
+Icon=utilities-terminal
+Exec=fish -c 'jumpsurya "%f"'
+
+[Desktop Action OpenARIESterminal]
+Name=Open ARIES Terminal Here
+Icon=utilities-terminal
+Exec=fish -c 'jumparies "%f"'

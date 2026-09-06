@@ -1,6 +1,6 @@
 # Surya HPC (ARIES) Cluster Setup & User Guide
 
-Comprehensive guide covering system specifications, resolving the `bash` ➔ `fish` startup loop, configuring Fish shell on demand, Fastfetch installation, X2Go remote desktop access, and scientific software setup on the ARIES Surya HPC cluster.
+Comprehensive guide covering system specifications, resolving the `bash` ➔ `fish` startup loop, configuring Fish shell on demand, Fastfetch installation, X2Go remote desktop access, Dolphin remote network folder browsing, and scientific software setup on the ARIES Surya HPC cluster.
 
 ---
 
@@ -110,7 +110,50 @@ ssh -Y yashsharma@192.168.4.1
 
 ---
 
-## 4. Software Environment & Module Management
+## 4. Remote File Browsing via Dolphin (KDE Network / Remote Location)
+
+Rather than mounting Surya as a local folder in your home directory (which clutters `~/` and causes hangs if the network drops), you can add Surya directly into KDE Dolphin's native **"Remote"** network view using SFTP. This leaves **zero local footprint** in `~/` and connects on-demand.
+
+### 4.1 Setup on Local Machines (PC & Laptop)
+
+KDE stores network locations in `~/.local/share/remoteview/`. Create the desktop link entry:
+
+```bash
+mkdir -p ~/.local/share/remoteview
+cat << 'EOF' > ~/.local/share/remoteview/Surya_HPC.desktop
+[Desktop Entry]
+Icon=folder-remote
+Name=Surya HPC
+Type=Link
+URL=sftp://yashsharma@192.168.4.1/home/yashsharma
+EOF
+```
+
+To sync this from your PC to your Laptop over Tailscale:
+```bash
+scp ~/.local/share/remoteview/Surya_HPC.desktop void@100.70.236.70:~/.local/share/remoteview/
+```
+
+### 4.2 How to Access in Dolphin
+
+1. Open **Dolphin**.
+2. Look at the left sidebar under the **"Remote"** category and click **"Network"** (or press `Ctrl + L` and type `remote:/`).
+3. **Surya HPC** appears listed there with a remote server folder icon.
+4. Double-click it to browse `/home/yashsharma` directly over SFTP.
+
+### 4.3 Pin Directly to Dolphin Sidebar ("Remote" Group)
+
+To make Surya accessible in the sidebar with a single click:
+
+1. Inside Dolphin's **Network** view, right-click on the **"Surya HPC"** icon.
+2. Select **"Add to Places"**.
+3. In Dolphin's left sidebar, drag the new **Surya HPC** entry directly under the **"Remote"** section header.
+
+*(Now clicking "Surya HPC" in your sidebar loads your remote cluster files instantly without mounting anything to your local disk).*
+
+---
+
+## 5. Software Environment & Module Management
 
 Surya uses the **Environment Modules** system for cluster-wide scientific packages and compilers.
 
@@ -148,7 +191,7 @@ conda config --set repodata_use_shards false
 
 ---
 
-## 5. Storage Quota & Housekeeping
+## 6. Storage Quota & Housekeeping
 
 * **Current Status:** `/home` is at **94% capacity** cluster-wide (~2.7 TB available).
 * **Check Your Personal Usage:**

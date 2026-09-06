@@ -1,0 +1,5 @@
+[Desktop Entry]
+Icon=folder-remote
+Name=Surya HPC
+Type=Link
+URL=sftp://yashsharma@192.168.4.1/home/yashsharma
