@@ -295,6 +295,8 @@ function checkmonitors {
 * Type `sshpc` — auto-wakes the PC if needed, then connects.
 * Type `fixstream` — recovers crashed Moonlight streams.
 * Type `phonebattery` — checks voidphone battery level.
+* Type `transfer pc <file>` — sends files to your PC over Tailscale with live progress.
+* Type `transfer surya <file>` — sends scientific datasets/archives to Surya HPC.
 
 ### From a Windows Laptop (PowerShell)
 
@@ -307,7 +309,203 @@ function checkmonitors {
 ### From your PC (Fish)
 
 * Type `sshlaptop` — instantly drops into your laptop's terminal.
+* Type `transfer laptop <file>` — sends files to your Laptop over Tailscale.
+* Type `transfer surya <file>` — sends files directly to Surya HPC.
+* Type `transfer aries <file>` — sends files to the ARIES server.
 
 ### X11 Forwarding (Optional)
 
 If you ever need to launch a graphical application from one Linux machine and display it on the other within your Niri/DMS environment, add `-Y` to your ssh commands (e.g., `ssh -Y void@100.117.73.75`). For Windows GUI forwarding, see the Xpra setup in the [Advanced Remote Environments guide](file:///home/void/Cachyos-installation/Configuration/08_Advanced_Bidirectional_Remote_Environments.md).
+
+---
+
+## Phase 5: Surya HPC (ARIES) Cluster Configuration
+
+Surya is the high-performance computing cluster at ARIES (Aryabhatta Research Institute of Observational Sciences). It runs CentOS Linux 7 on dual Intel Xeon Gold 6226R processors (32 physical cores, 188 GB ECC RAM) with XFCE desktop and X2Go support.
+
+### Cluster Details
+
+| Setting | Value |
+| :--- | :--- |
+| **Internal IP** | `192.168.4.1` |
+| **Hostname** | `surya` / `surya.aries.res.in` |
+| **Default User** | `yashsharma` |
+| **Default Shell** | `bash` |
+| **Desktop Environment** | `XFCE` (`/usr/bin/xfce4-session`) |
+| **Remote Desktop Server** | `X2Go Server` (`/usr/bin/x2gostartagent`) |
+
+> [!NOTE]
+> Public DNS (such as Google `8.8.8.8` or Cloudflare WARP `1.1.1.1`) cannot resolve internal institute hostnames like `surya`. Direct IP (`192.168.4.1`) or local SSH/hosts mappings must be used.
+
+---
+
+### 1. Passwordless SSH Setup
+
+Install your existing local ED25519 public key onto Surya so you never have to type your password:
+
+```bash
+ssh-copy-id yashsharma@192.168.4.1
+```
+
+*(Enter your cluster password one last time).*
+
+---
+
+### 2. OpenSSH Client Host Configuration (`~/.ssh/config`)
+
+Add Surya to your `~/.ssh/config` file. This enables `ssh surya`, `scp file surya:~`, and system-wide tooling integration:
+
+```ssh
+Host surya
+    HostName 192.168.4.1
+    User yashsharma
+    IdentityFile ~/.ssh/id_ed25519
+    ForwardX11 yes
+```
+
+---
+
+### 3. Fish Shell Function (`sshsurya`)
+
+Run the following in your local Fish shell to create a persistent shortcut that supports passing arguments (e.g. `sshsurya -X` or `sshsurya "free -h"`):
+
+```fish
+function sshsurya --description 'SSH into Surya HPC cluster'
+    ssh yashsharma@192.168.4.1 $argv
+end
+funcsave sshsurya
+```
+
+---
+
+### 4. Windows PowerShell Function (`sshsurya`)
+
+Add this function to `$PROFILE` on your Windows laptop:
+
+```powershell
+function sshsurya {
+    ssh yashsharma@192.168.4.1 $args
+}
+```
+
+---
+
+### 5. Remote GUI Access via X2Go
+
+To run an interactive desktop session (XFCE) over the network:
+
+1. **Launch X2Go Client on Wayland/Niri:**
+   ```bash
+   QT_QPA_PLATFORM=xcb x2goclient
+   ```
+2. **Session Configuration:**
+   * **Host:** `192.168.4.1`
+   * **Login:** `yashsharma`
+   * **SSH Port:** `22`
+   * **Session Type:** `XFCE`
+3. Click the session card to connect.
+
+*(For fast single-app GUI forwarding without launching the full desktop, simply use `sshsurya -Y <app_name>`).*
+
+---
+
+## Phase 6: Universal Cross-Machine File Transfer Function (`transfer`)
+
+The `transfer` function provides a unified command across all your machines (PC, Laptop, Surya HPC, and ARIES) using `rsync` over SSH. It displays a real-time progress bar, transfer rate, supports resuming interrupted downloads, and handles single or multiple files in batches.
+
+### 1. Fish Shell Function (`~/.config/fish/functions/transfer.fish`)
+
+This function is installed on both your **PC** and **Laptop**, and backed up in [Dotfiles/fish/functions/transfer.fish](file:///home/void/Cachyos-installation/Dotfiles/fish/functions/transfer.fish):
+
+```fish
+function transfer --description "Transfer files/directories to pc, laptop, or surya via rsync"
+    if test (count $argv) -lt 2
+        echo "Usage: transfer <pc|laptop|surya|aries> <file1> [file2...] [destination_folder/]"
+        echo ""
+        echo "Examples:"
+        echo "  transfer surya mesasdk-x86_64-linux-23.7.3.tar.gz"
+        echo "  transfer surya mesasdk-x86_64-linux-23.7.3.tar.gz mesa-r23.05.1.zip"
+        echo "  transfer laptop document.pdf"
+        echo "  transfer pc report.tar.gz Desktop/"
+        return 1
+    end
+
+    set -l target (string lower $argv[1])
+    set -l remote_user_host ""
+    set -l cur_host (hostname)
+
+    switch $target
+        case pc
+            if test "$cur_host" = "void-pc"
+                echo "Error: You are already on PC ($cur_host)."
+                return 1
+            end
+            set remote_user_host "void@100.117.73.75"
+
+        case laptop
+            if test "$cur_host" = "void"
+                echo "Error: You are already on Laptop ($cur_host)."
+                return 1
+            end
+            set remote_user_host "void@100.70.236.70"
+
+        case surya
+            set remote_user_host "yashsharma@192.168.4.1"
+
+        case aries
+            set remote_user_host "shashi@172.18.1.5"
+
+        case '*'
+            echo "Error: Unknown target '$target'. Supported: pc, laptop, surya, aries"
+            return 1
+    end
+
+    # Determine files vs optional destination directory
+    set -l files
+    set -l dest_path "~/"
+
+    # If the last argument does not exist locally and there are > 2 args, treat as remote destination path
+    if test (count $argv) -gt 2 -a ! -e "$argv[-1]"
+        set dest_path "$argv[-1]"
+        set files $argv[2..-2]
+    else
+        set files $argv[2..-1]
+    end
+
+    # Validate source files exist
+    for f in $files
+        if not test -e "$f"
+            echo "Error: Cannot find local file or directory '$f'"
+            return 1
+        end
+    end
+
+    echo "Transferring to $target ($remote_user_host:$dest_path)..."
+    rsync -ahP $files "$remote_user_host:$dest_path"
+end
+```
+
+### 2. Fish Autocompletion (`~/.config/fish/completions/transfer.fish`)
+
+Enables tab autocompletion for target hostnames (`pc`, `laptop`, `surya`, `aries`) and local files:
+
+```fish
+complete -c transfer -n "__fish_is_first_arg" -a "pc laptop surya aries" -d "Target host"
+complete -c transfer -n "not __fish_is_first_arg" -F
+```
+
+### 3. Usage Reference Table
+
+| Command Example | Source | Target Host | Default Destination | Key Use Case |
+| :--- | :--- | :--- | :--- | :--- |
+| `transfer surya <file>` | PC / Laptop | Surya HPC (`192.168.4.1`) | `~/` | Transfer MESA archives, simulation datasets, or scripts to Surya |
+| `transfer surya <f1> <f2>` | PC / Laptop | Surya HPC (`192.168.4.1`) | `~/` | Batch transfer multiple files in a single operation |
+| `transfer surya <file> MESA/` | PC / Laptop | Surya HPC (`192.168.4.1`) | `~/MESA/` | Transfer directly into a specific folder on Surya |
+| `transfer laptop <file>` | PC | Laptop (`100.70.236.70`) | `~/` | Transfer documents or code to Laptop over Tailscale |
+| `transfer pc <file>` | Laptop | PC (`100.117.73.75`) | `~/` | Transfer files to PC over Tailscale (LAN speed when on same WiFi) |
+| `transfer aries <file>` | PC / Laptop | ARIES Server (`172.18.1.5`) | `~/` | Transfer Fermi / 3ML fits files to ARIES CentOS server |
+
+> [!TIP]
+> `transfer` automatically runs with `rsync -ahP`. If a transfer is ever interrupted (e.g. WiFi drops or terminal closes), simply re-run the exact same command to resume from where it stopped without restarting from 0%.
+
+

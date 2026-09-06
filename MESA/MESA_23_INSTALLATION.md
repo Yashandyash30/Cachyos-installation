@@ -7,7 +7,11 @@ This guide covers how to specifically install the legacy version of MESA (r23.05
 MESA r23.05.1 requires the older MESA SDK 23.7.3 to compile successfully. We will install it in a uniquely named folder.
 
 **1. Download the SDK:**
-Go to the official MESA SDK website and download the Linux x86_64 tarball for version 23.7.3 (`mesasdk-x86_64-linux-23.7.3.tar.gz`).
+Download the Linux x86_64 tarball for version 23.7.3 directly via `curl`:
+```bash
+curl -C - -L -O "http://user.astro.wisc.edu/~townsend/resource/download/mesasdk/mesasdk-x86_64-linux-23.7.3.tar.gz"
+```
+*(If downloading on your local PC/Laptop to transfer to the server, use the `transfer` command: `transfer surya mesasdk-x86_64-linux-23.7.3.tar.gz`)*
 
 **2. Extract and rename the SDK:**
 ```bash
@@ -27,7 +31,11 @@ mv ~/mesasdk-23.7.3/lib/gcc/x86_64-pc-linux-gnu/13.1.0/include-fixed ~/mesasdk-2
 ## Phase 2: Download and Extract MESA r23.05.1
 
 **1. Download the Source Code:**
-Download the `mesa-r23.05.1.zip` release file (usually from Zenodo or the official MESA archives).
+Download the `mesa-r23.05.1.zip` release file directly from Zenodo:
+```bash
+curl -C - -L -o mesa-r23.05.1.zip "https://zenodo.org/records/7983526/files/mesa-r23.05.1.zip"
+```
+*(If transferring from your PC/Laptop: `transfer surya mesa-r23.05.1.zip`)*
 
 **2. Extract to a versioned folder:**
 ```bash
