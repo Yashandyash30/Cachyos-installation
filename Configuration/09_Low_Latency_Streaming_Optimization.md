@@ -156,6 +156,67 @@ setpcrefreshrate 100    # Sets PC to 100 Hz
 
 ---
 
+### Method C: Laptop Refresh Rate Switching (`HDMI-A-1` External Monitor)
+
+Your laptop has two displays:
+* **`eDP-1` (Inbuilt Panel):** Fixed at **60.05 Hz**.
+* **`HDMI-A-1` (MSI MAG 255F):** Supports **60 Hz, 120 Hz, 165 Hz, 180 Hz, and 200 Hz**.
+
+#### 1. Instant One-Liners for Laptop Screen:
+
+* **Locally on Laptop:**
+  ```bash
+  export NIRI_SOCKET=$(echo /run/user/1000/niri.*.sock); niri msg output HDMI-A-1 mode 1920x1080@120.000
+  ```
+* **Remotely from Host PC over SSH:**
+  ```bash
+  ssh void@100.70.236.70 "export NIRI_SOCKET=\$(echo /run/user/1000/niri.*.sock); niri msg output HDMI-A-1 mode 1920x1080@120.000"
+  ```
+
+#### 2. Reusable Fish Function / Alias (`setlaptoprefreshrate`):
+
+This smart function is installed on **both** your Host PC and Laptop. It automatically detects where you are and applies the change locally or over SSH:
+
+```fish
+function setlaptoprefreshrate -d "Change refresh rate on Laptop's external monitor (HDMI-A-1)"
+    set hz $argv[1]
+    if test -z "$hz"
+        set hz 120
+    end
+
+    if test (hostname) = "void-pc"
+        ssh void@100.70.236.70 "export NIRI_SOCKET=\$(echo /run/user/1000/niri.*.sock); niri msg output HDMI-A-1 mode 1920x1080@$hz.000"
+    else
+        set -gx NIRI_SOCKET (echo /run/user/1000/niri.*.sock)
+        niri msg output HDMI-A-1 mode 1920x1080@$hz.000
+    end
+    echo "Laptop HDMI-A-1 (MSI MAG 255F) set to $hz Hz"
+end
+```
+
+Usage:
+```bash
+setlaptoprefreshrate 60     # Sets MSI monitor on laptop to 60 Hz
+setlaptoprefreshrate 120    # Sets MSI monitor on laptop to 120 Hz
+setlaptoprefreshrate 180    # Sets MSI monitor on laptop to 180 Hz
+```
+
+#### 3. Automated Matching via Laptop Sunshine:
+
+If you are streaming your laptop's screen to another device and want Sunshine to automatically match Moonlight's requested FPS:
+1. Open Laptop Sunshine Web UI: `https://100.70.236.70:47990`
+2. Go to **Applications** → **Desktop** → **Edit**.
+3. Set **Do Command**:
+   ```bash
+   sh -c "export NIRI_SOCKET=\$(echo /run/user/1000/niri.*.sock); niri msg output HDMI-A-1 mode 1920x1080@\${SUNSHINE_CLIENT_FPS}.000 || niri msg output HDMI-A-1 mode 1920x1080@60.000"
+   ```
+4. Set **Undo Command**:
+   ```bash
+   sh -c "export NIRI_SOCKET=\$(echo /run/user/1000/niri.*.sock); niri msg output HDMI-A-1 mode 1920x1080@120.000"
+   ```
+
+---
+
 ## 4. Wayland (Niri) Optimization: Eliminating Double-VSync
 
 A major source of input lag on Linux streaming is **Double-VSync**:
@@ -204,15 +265,213 @@ Tailscale automatically establishes direct peer-to-peer LAN connections (`0.27 m
 
 ---
 
-## 7. HDMI Dummy Plug Best Practices
+## 7. Selecting Which Screen Sunshine Captures on Host PC (HDMI vs. DisplayPort)
 
-1. **Inherent Hardware Privacy:** An HDMI dummy plug is a passive resistor/EEPROM device. It has no screen, emits no light, and cannot be seen. You **never** need to run DDC/CI sleep scripts (`ddcutil`) or privacy commands on a dummy plug.
-2. **Avoid Overlapping Virtual Displays:** Never create an experimental virtual output (`niri-virtual msg create-virtual-output`) at `(0, 0)` while a dummy plug is active. This causes Intel `i915` to leak dozens of gigabytes into `shmem`, triggering kernel Out-Of-Memory (OOM) crashes.
-3. **Stream Standard Desktop:** Use the standard **Desktop** Sunshine profile directly targeting the dummy plug output (`HDMI-A-2`).
+Your Host PC (`void-pc`) GPU (Intel UHD 770) exposes both HDMI and DisplayPort (DP) connectors:
+* **HDMI:** `HDMI-A-2` (Main HP 324pv monitor or HDMI Dummy Plug) & `HDMI-A-1`
+* **DisplayPort:** `DP-1` & `DP-2` (DisplayPort monitor or DP Dummy Plug)
+
+Under Niri Wayland, Sunshine's `wlgrab` capture subsystem recognizes both connector names and numeric indices:
+```text
+[wlgrab] Monitor 0 is HDMI-A-2: HP Inc. - HP 324pv - HDMI-A-2
+[wlgrab] Monitor 1 is DP-1: ...
+```
+
+Sunshine reads `output_name` in `~/.config/sunshine/sunshine.conf`. You can supply either the connector name (`HDMI-A-2`, `DP-1`, `DP-2`) or numeric index (`0`, `1`).
 
 ---
 
-## 8. In-Stream Diagnostics (The Verification Step)
+### Method A: Instant Switcher Alias / Fish Function (`pcsunshinescreen`)
+
+A smart Fish function is installed on **both** your Host PC and Laptop. When executed from the Laptop, it automatically tunnels the command to the PC over SSH and restarts Sunshine in < 1 second:
+
+```fish
+function pcsunshinescreen -d "Switch which screen Sunshine captures on Host PC (HDMI vs DP)"
+    set target $argv[1]
+
+    set script '
+        target="'$target'"
+        conf="$HOME/.config/sunshine/sunshine.conf"
+        export NIRI_SOCKET=$(echo /run/user/1000/niri.*.sock 2>/dev/null)
+
+        if [ -z "$target" ] || [ "$target" = "status" ] || [ "$target" = "current" ]; then
+            echo "=== Sunshine Host PC Current Setting ==="
+            grep "output_name" "$conf" 2>/dev/null || echo "output_name is not set (defaulting to primary/Monitor 0)"
+            echo ""
+            echo "=== Active Displays in Niri ==="
+            niri msg outputs 2>/dev/null | grep -E "(Output|Current mode)" || echo "No Niri session detected"
+            echo ""
+            echo "=== Detected Monitors in Sunshine Logs ==="
+            grep -m 4 "Monitor [0-9]" "$HOME/.config/sunshine/sunshine.log" 2>/dev/null || true
+            exit 0
+        fi
+
+        case "$(echo "$target" | tr "[:upper:]" "[:lower:]")" in
+            hdmi)
+                conn=$(niri msg outputs 2>/dev/null | grep -o "HDMI-A-[0-9]" | head -n 1)
+                [ -z "$conn" ] && conn="HDMI-A-2"
+                ;;
+            dp|displayport)
+                conn=$(niri msg outputs 2>/dev/null | grep -o "DP-[0-9]" | head -n 1)
+                [ -z "$conn" ] && conn="DP-1"
+                ;;
+            hdmi-1|hdmi-a-1) conn="HDMI-A-1" ;;
+            hdmi-2|hdmi-a-2) conn="HDMI-A-2" ;;
+            dp-1) conn="DP-1" ;;
+            dp-2) conn="DP-2" ;;
+            0|1|2) conn="$target" ;;
+            *) conn="$target" ;;
+        esac
+
+        if grep -q "^output_name" "$conf" 2>/dev/null; then
+            sed -i "s/^output_name = .*/output_name = $conn/" "$conf"
+        else
+            echo "output_name = $conn" >> "$conf"
+        fi
+
+        systemctl --user restart sunshine.service
+        echo "Sunshine on Host PC switched to: $conn"
+    '
+
+    if test (hostname) = "void-pc"
+        bash -c "$script"
+    else
+        echo "$script" | ssh void@100.117.73.75 "bash -s"
+    end
+end
+```
+
+#### How to Use It (from PC or Laptop terminal):
+
+* **Switch Sunshine to capture HDMI:**
+  ```bash
+  pcsunshinescreen hdmi        # Automatically picks active HDMI (or HDMI-A-2)
+  ```
+* **Switch Sunshine to capture DisplayPort:**
+  ```bash
+  pcsunshinescreen dp          # Automatically picks active DP (or DP-1)
+  ```
+* **Target a specific connector directly:**
+  ```bash
+  pcsunshinescreen DP-1
+  pcsunshinescreen DP-2
+  pcsunshinescreen HDMI-A-2
+  ```
+* **Check status and active outputs on PC:**
+  ```bash
+  pcsunshinescreen status
+  ```
+
+---
+
+### Method B: Sunshine Web UI (Browser)
+
+1. Open the Sunshine Web UI on your Host PC:
+   * **Locally from PC:** `https://localhost:47990`
+   * **Remotely from Laptop:** `https://100.117.73.75:47990`
+2. Navigate to **Configuration** → **Audio/Video**.
+3. Scroll to **Display Id / Output Name**:
+   * Enter `HDMI-A-2` (or `0`) for the HDMI monitor/dummy plug.
+   * Enter `DP-1` (or `1`) for the DisplayPort monitor/dummy plug.
+4. Click **Save** at the bottom, then click **Apply** / restart the service.
+
+---
+
+## 8. Selecting Which Screen Sunshine Captures on Laptop (External Monitor vs. Inbuilt Screen)
+
+When running Sunshine on your laptop under Wayland (Niri), the capture subsystem (`wlgrab`) enumerates all attached monitors into numeric indices:
+
+```text
+[wlgrab] Monitor 0 is eDP-1: AU Optronics - 0xDF87 (Inbuilt Panel)
+[wlgrab] Monitor 1 is HDMI-A-1: Microstep - MAG 255F (External Monitor)
+```
+
+Sunshine decides which screen to capture using the **`output_name`** setting in `~/.config/sunshine/sunshine.conf`:
+* `output_name = 0` $\rightarrow$ Captures the **Inbuilt Laptop Display (`eDP-1`)**
+* `output_name = 1` $\rightarrow$ Captures the **External MSI Gaming Monitor (`HDMI-A-1`)**
+
+---
+
+### Method A: Instant Switcher Alias / Fish Function (`laptopsunshinescreen`)
+
+A dedicated smart function is installed on both your **Host PC** and **Laptop**. It updates `sunshine.conf` and reloads the user daemon seamlessly in under a second:
+
+```fish
+function laptopsunshinescreen -d "Switch which screen Sunshine captures on Laptop (external vs internal)"
+    set target $argv[1]
+    switch "$target"
+        case internal inbuilt edp edp-1 0
+            set val 0
+            set label "Laptop Inbuilt Screen (eDP-1 / Monitor 0)"
+        case external hdmi hdmi-a-1 1
+            set val 1
+            set label "External Monitor (HDMI-A-1 / Monitor 1)"
+        case status current ""
+            if test (hostname) = "void-pc"
+                ssh void@100.70.236.70 "cat ~/.config/sunshine/sunshine.conf | grep output_name; echo '--- Detected Monitors in Sunshine ---'; grep -m 2 'Monitor [01]' ~/.config/sunshine/sunshine.log"
+            else
+                cat ~/.config/sunshine/sunshine.conf | grep output_name
+                echo "--- Detected Monitors in Sunshine ---"
+                grep -m 2 'Monitor [01]' ~/.config/sunshine/sunshine.log
+            end
+            return
+        case "*"
+            echo "Usage: laptopsunshinescreen [external | internal | status]"
+            echo "  external -> captures MSI MAG 255F (HDMI-A-1 / output_name = 1)"
+            echo "  internal -> captures Inbuilt Screen (eDP-1 / output_name = 0)"
+            return 1
+    end
+
+    if test (hostname) = "void-pc"
+        ssh void@100.70.236.70 "sed -i 's/^output_name = .*/output_name = $val/' ~/.config/sunshine/sunshine.conf && systemctl --user restart sunshine.service"
+    else
+        sed -i "s/^output_name = .*/output_name = $val/" ~/.config/sunshine/sunshine.conf
+        systemctl --user restart sunshine.service
+    end
+    echo "Sunshine on Laptop switched to: $label"
+end
+```
+
+#### How to Use It (from PC or Laptop terminal):
+
+* **Switch Sunshine to share the External Monitor:**
+  ```bash
+  laptopsunshinescreen external
+  ```
+* **Switch Sunshine to share the Laptop Inbuilt Screen:**
+  ```bash
+  laptopsunshinescreen internal
+  ```
+* **Check which display Sunshine is currently targeting:**
+  ```bash
+  laptopsunshinescreen status
+  ```
+
+---
+
+### Method B: Sunshine Web UI (Graphical Configuration)
+
+If you prefer using the browser:
+1. Open the Sunshine Web UI on your laptop:
+   * **Locally from Laptop:** `https://localhost:47990`
+   * **Remotely from Host PC:** `https://100.70.236.70:47990`
+2. Navigate to **Configuration** → **Audio/Video**.
+3. Scroll to **Display Id / Output Name**:
+   * Type **`0`** to capture the **Inbuilt Display (`eDP-1`)**.
+   * Type **`1`** to capture the **External MSI Monitor (`HDMI-A-1`)**.
+4. Click **Save** at the bottom, then click **Apply** / restart the service.
+
+---
+
+## 9. HDMI & DisplayPort Dummy Plug Best Practices
+
+1. **Inherent Hardware Privacy:** An HDMI or DisplayPort dummy plug is a passive resistor/EEPROM device. It has no screen, emits no light, and cannot be seen. You **never** need to run DDC/CI sleep scripts (`ddcutil`) or privacy commands on a dummy plug.
+2. **Avoid Overlapping Virtual Displays:** Never create an experimental virtual output (`niri-virtual msg create-virtual-output`) at `(0, 0)` while a dummy plug is active. This causes Intel `i915` to leak dozens of gigabytes into `shmem`, triggering kernel Out-Of-Memory (OOM) crashes.
+3. **Stream Standard Desktop:** Use the standard **Desktop** Sunshine profile directly targeting the dummy plug output (`HDMI-A-2` or `DP-1`).
+
+---
+
+## 10. In-Stream Diagnostics (The Verification Step)
 
 While your stream is running in Moonlight, press:
 
