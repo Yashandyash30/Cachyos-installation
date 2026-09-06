@@ -233,3 +233,10 @@ nano ~/.config/niri/config.kdl
 ```
 
 Save and exit. When you start your next stream, your cursor will perfectly map to the exact edges of your screen, no matter how many physical monitors are currently plugged in!
+
+---
+
+## Further Reading & Performance Optimization
+
+For complete refresh rate cadence math, on-the-fly refresh rate switching via Sunshine/SSH, and Wayland double-VSync elimination, refer to the dedicated guide:
+👉 [09_Low_Latency_Streaming_Optimization.md](file:///home/void/Cachyos-installation/Configuration/09_Low_Latency_Streaming_Optimization.md)

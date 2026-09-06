@@ -205,3 +205,10 @@ systemctl --user restart sunshine
 1. **The "First Launch" Screen Share Prompt:** The first time you connect from Moonlight, Wayland's `xdg-desktop-portal` will display a prompt on the host physical screen asking for permission to "Share this screen." You must physically click **Allow** before the video feed pushes through.
 2. **The "Greedy" Super Key:** If you press global Niri shortcuts (like `Super + Enter`) while streaming, they trigger on your *local* machine. In Moonlight, go to Settings -> Input Settings -> **Capture system keyboard shortcuts** and set it to **Always** (or press `Ctrl + Alt + Shift + Z` while streaming).
 3. **Eradicating Legacy X11 Commands:** If your stream instantly crashes, check your apps configuration (`~/.config/sunshine/apps.json`). Delete any `xrandr` commands from the `"do"` and `"undo"` fields, as X11 commands will fatally clash with a pure Wayland environment like Niri.
+
+---
+
+## 4. Advanced Low-Latency Stutter-Free Streaming & Dynamic Refresh Rate Optimization
+
+For complete refresh rate cadence math, on-the-fly refresh rate switching via Sunshine and SSH, Wayland double-VSync elimination, and HDMI dummy plug optimizations, refer to the dedicated master guide:
+👉 [09_Low_Latency_Streaming_Optimization.md](file:///home/void/Cachyos-installation/Configuration/09_Low_Latency_Streaming_Optimization.md)
