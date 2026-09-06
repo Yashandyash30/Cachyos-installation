@@ -151,18 +151,18 @@ def patch_elf_verneed(filepath):
             data = bytearray(f.read())
             if data[:4] != b"\x7fELF" or data[4] != 2:
                 return False
-            
+          
             e_shoff = struct.unpack("<Q", data[40:48])[0]
             e_shentsize = struct.unpack("<H", data[58:60])[0]
             e_shnum = struct.unpack("<H", data[60:62])[0]
             e_shstrndx = struct.unpack("<H", data[62:64])[0]
-        
+      
             if e_shstrndx >= e_shnum or e_shoff == 0:
                 return False
-            
+          
             shstr_hdr = e_shoff + e_shstrndx * e_shentsize
             shstr_offset = struct.unpack("<Q", data[shstr_hdr+24:shstr_hdr+32])[0]
-        
+      
             sections = {}
             for i in range(e_shnum):
                 hdr = e_shoff + i * e_shentsize
@@ -171,20 +171,20 @@ def patch_elf_verneed(filepath):
                 sh_size = struct.unpack("<Q", data[hdr+32:hdr+40])[0]
                 name = data[shstr_offset + sh_name_idx:].split(b"\x00")[0].decode("latin1", errors="ignore")
                 sections[name] = (sh_offset, sh_size)
-            
+          
             if ".gnu.version_r" not in sections or ".dynstr" not in sections:
                 return False
-            
+          
             dynstr_off, dynstr_size = sections[".dynstr"]
             verneed_off, verneed_size = sections[".gnu.version_r"]
-        
+      
             dynstr = data[dynstr_off : dynstr_off + dynstr_size]
             idx_227 = dynstr.find(b"GLIBC_2.27\x00")
             idx_225 = dynstr.find(b"GLIBC_2.2.5\x00")
-        
+      
             if idx_227 == -1 or idx_225 == -1:
                 return False
-            
+          
             hash_225 = 0x09691a75
             curr_vn = verneed_off
             modified = False
@@ -192,25 +192,25 @@ def patch_elf_verneed(filepath):
                 vn_cnt = struct.unpack("<H", data[curr_vn+2:curr_vn+4])[0]
                 vn_aux = struct.unpack("<I", data[curr_vn+8:curr_vn+12])[0]
                 vn_next = struct.unpack("<I", data[curr_vn+12:curr_vn+16])[0]
-            
+          
                 curr_vna = curr_vn + vn_aux
                 for _ in range(vn_cnt):
                     vna_name = struct.unpack("<I", data[curr_vna+8:curr_vna+12])[0]
                     vna_next = struct.unpack("<I", data[curr_vna+12:curr_vna+16])[0]
-                
+              
                     if vna_name == idx_227:
                         data[curr_vna : curr_vna+4] = struct.pack("<I", hash_225)
                         data[curr_vna+8 : curr_vna+12] = struct.pack("<I", idx_225)
                         modified = True
-                    
+                  
                     if vna_next == 0:
                         break
                     curr_vna += vna_next
-                
+              
                 if vn_next == 0:
                     break
                 curr_vn += vn_next
-            
+          
             if modified:
                 f.seek(0)
                 f.write(data)

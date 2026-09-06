@@ -2,6 +2,20 @@
 
 Here is the complete, start-to-finish guide for your dynamic, hardware-accelerated headless streaming setup on CachyOS. This updated version correctly isolates your standard Niri session from your experimental streaming session.
 
+> [!IMPORTANT]
+> ### 🛑 Choose Your Path: HDMI Dummy Plug vs. Virtual Outputs
+> 
+> Before proceeding, determine whether you are using an **HDMI Dummy Plug** or running **Pure Software Headless**:
+> 
+> * **If you have an HDMI Dummy Plug plugged in (Recommended):**
+>   * **Skip `niri-virtual` and Phase 1–4:** The dummy plug already provides a real hardware display output (e.g. `HDMI-A-2`). You can simply boot into standard, stable CachyOS `niri`.
+>   * **Do NOT use Privacy Mode or `ddcutil` (Phase 5–7):** A dummy plug emits no light and has no panel. You already have 100% privacy. Running `ddcutil` on a dummy plug causes I2C bus hangs because dummy plugs lack DDC/CI microcontrollers.
+>   * **Do NOT create virtual outputs on top of a dummy plug:** Creating a virtual output at `(0, 0)` while a dummy plug is active confuses Sunshine's `wlgrab` monitor selector and causes the Intel GPU driver (`i915`) to leak dozens of gigabytes of framebuffers into `shmem`, triggering kernel Out-Of-Memory (OOM) crashes.
+>   * **Sunshine Configuration:** Simply use the standard **Desktop** mode in Sunshine with **NO** Do/Undo commands.
+> 
+> * **If you have NO dummy plug and NO monitor (Pure Virtual Displays):**
+>   * Follow Phase 1 through Phase 8 below to build the custom compositor and dynamically spawn virtual outputs.
+
 ---
 
 ## Phase 1: Build the Experimental Niri Compositor
@@ -117,6 +131,10 @@ Session=niri-virtual
 
 To prevent Wayland pipeline crashes, we bypass OS-level sleep and command the monitors to enter electrical standby via their HDMI/DisplayPort cables.
 
+> [!WARNING]
+> **Do NOT run `ddcutil` on an HDMI Dummy Plug:**
+> DDC/CI commands are only understood by real monitors with internal display controller boards and physical backlights. An HDMI dummy plug has no DDC/CI chip; sending VCP commands to it causes I2C communication timeouts and kernel bus stalls. Only target physical monitors (e.g., HP monitors) with `ddcutil`.
+
 **1. Ensure `ddcutil` is installed and your user is in the `i2c` group:**
 ```bash
 sudo pacman -S ddcutil
@@ -151,12 +169,22 @@ nano ~/.config/niri/config.kdl
 
 ## Phase 7: Automate Sunshine
 
-Configure Sunshine to handle the virtual display creation and hardware monitor sleeping seamlessly.
+Configure Sunshine to handle streaming smoothly.
+
+> [!TIP]
+> **Configuration Profiles: Dummy Plug vs. Physical Monitor**
+> 
+> * **If using an HDMI Dummy Plug:**
+>   * Use the standard **Desktop** profile in Sunshine.
+>   * **Leave Do Command and Undo Command empty.** You do not need to create virtual displays or call `ddcutil`.
+>   * In Sunshine Web UI (**Configuration -> Audio/Video**), set your encoder priority explicitly to **VAAPI** (Intel QuickSync) to prevent Sunshine from failing on NVENC/Vulkan and looping.
+> * **If using a Physical Monitor (and you want it to go dark while streaming):**
+>   * Use the **Desktop-Privacy** configuration below to sleep the panel via DDC/CI.
 
 **1. Navigate to the Configuration Screen:**
 Open the Sunshine Web UI (`https://localhost:47990`) and navigate to **Application -> edit (for first Desktop)**.
 
-**2. Rename the Default Desktop:**
+**2. Rename the Default Desktop (For Physical Monitor Privacy):**
 Change the name from **Desktop** to **Desktop-Privacy**.
 
 **3. Configure the Pre/Post Commands:**
@@ -171,10 +199,11 @@ sh -c "ddcutil -d 1 setvcp 0xd6 0x01 || true; ddcutil -d 2 setvcp 0xd6 0x01 || t
 ```
 Click **Save** at the bottom to apply changes.
 
-**4. Add a Standard Desktop Entry (Optional):**
-To add another normal Desktop entry without privacy safeguards:
+**4. Add a Standard Desktop Entry (For Normal / Dummy Plug Streaming):**
+To add a normal Desktop entry without privacy scripts:
 * Click on **Add New**.
 * Enter **Desktop** in the **Application Name** box.
+* Leave **Do Command** and **Undo Command** completely blank.
 * Click on **Find Cover** in the Image Section to choose an appropriate icon.
 * Click **Save** at the bottom to apply changes.
 

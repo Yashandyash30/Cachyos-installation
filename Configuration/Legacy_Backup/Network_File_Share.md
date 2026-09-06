@@ -48,11 +48,17 @@ sudo nano /etc/ksmbd/ksmbd.conf
 
 Structure it like this (you can add as many folder blocks as you want under the `[global]` block):
 
+> [!WARNING]
+> **Kernel Crash & Shutdown Freeze Prevention (`oplocks = no`, `smb2 leases = no`)**
+> Because `ksmbd` operates in kernel space (Ring 0), opportunistic locking and SMB2 leases can cause kernel race conditions (`list_add corruption` in `ksmbd_smb_check_shared_mode`) when client machines browse directories that local desktop apps actively modify (especially `/home/void`). This corrupts kernel memory, strands processes in unkillable D-state (Uninterruptible Sleep), and causes the system to permanently freeze upon shutdown at `Reached target System Reboot`.
+> Always include `smb2 leases = no` in the `[global]` section and `oplocks = no` under every shared folder block.
+
 ```ini
 [global]
     netbios name = HostnameHere
     workgroup = WORKGROUP
     server string = KSMBD Server
+    smb2 leases = no
 
 [ShareName]
     path = /path/to/your/folder
@@ -61,6 +67,7 @@ Structure it like this (you can add as many folder blocks as you want under the 
     valid users = @void
     force user = void
     force group = void
+    oplocks = no
 ```
 
 **3. Open the Firewall**
@@ -158,6 +165,7 @@ Whenever you want to add a completely new folder to your network, it is a simple
     valid users = @void
     force user = void
     force group = void
+    oplocks = no
 ```
 
 3. Restart the service: `sudo systemctl restart ksmbd.service`
@@ -223,6 +231,10 @@ Run the following command to add your local network to WARP's exclusion list. *(
 ```bash
 warp-cli tunnel ip add-range 172.21.0.0/22
 ```
+
+> [!NOTE]
+> **Tailscale & Route-Flapping Protection**:
+> WARP automatically excludes `100.64.0.0/10` (Tailscale's CGNAT range) by default. Ensuring your local Wi-Fi/LAN subnet (e.g. `172.21.0.0/22`) is also excluded prevents WARP from rapidly flapping routes. Frequent route re-negotiation while an SMB connection is open can drop TCP packets and lead to stale locks that crash `ksmbd`. Verify exclusions with `warp-cli tunnel ip list`.
 
 **3. Restart the Connection**
 The new routing rules will not take effect until the tunnel is rebooted. Run these commands to bounce the connection:
@@ -364,3 +376,104 @@ If you already have SSH access set up over Tailscale, you do not even need `fsta
 2. Click the address bar at the top (or press `Ctrl+L`).
 3. Type `sftp://void@100.117.73.75/` (using the target machine's Tailscale IP).
 4. You can right-click any empty space in Dolphin's left sidebar and select **"Add to Places"** to save it permanently.
+
+---
+
+### Part 9: Live Production Configurations Reference (Host PC & Laptop)
+
+For disaster recovery or system re-installation, here are the exact, tested configuration files currently running on both machines.
+
+#### 1. Host PC (`void-pc` — Tailscale IP: `100.117.73.75`)
+
+##### `/etc/ksmbd/ksmbd.conf` (Server configuration)
+Exports `/mnt/Storage` as `[Storage]` and `/home/void` as `[Home]` with kernel stability options:
+
+```ini
+[global]
+    netbios name = CachyPC
+    workgroup = WORKGROUP
+    server string = KSMBD Server
+    smb2 leases = no
+
+[Storage]
+    path = /mnt/Storage
+    read only = no
+    guest ok = no
+    valid users = @void
+    force user = void
+    force group = void
+    oplocks = no
+
+[Home]
+    path = /home/void
+    read only = no
+    guest ok = no
+    valid users = @void
+    force user = void
+    force group = void
+    oplocks = no
+```
+
+##### `/etc/fstab` (Client mount configuration)
+Mounts the Laptop's Home directory to `/mnt/Laptop_Home` on demand:
+
+```text
+# Static file system information (/etc/fstab on Host PC)
+UUID=A0FC-BA0E                            /boot          vfat    defaults,umask=0077 0 2
+UUID=685f1655-1dc1-4c98-93f4-ab17def88368 /              btrfs   subvol=/@,defaults,noatime,compress=zstd:1 0 0
+UUID=685f1655-1dc1-4c98-93f4-ab17def88368 /home          btrfs   subvol=/@home,defaults,noatime,compress=zstd:1 0 0
+UUID=685f1655-1dc1-4c98-93f4-ab17def88368 /root          btrfs   subvol=/@root,defaults,noatime,compress=zstd:1 0 0
+UUID=685f1655-1dc1-4c98-93f4-ab17def88368 /srv           btrfs   subvol=/@srv,defaults,noatime,compress=zstd:1 0 0
+UUID=685f1655-1dc1-4c98-93f4-ab17def88368 /var/cache     btrfs   subvol=/@cache,defaults,noatime,compress=zstd:1 0 0
+UUID=685f1655-1dc1-4c98-93f4-ab17def88368 /var/tmp       btrfs   subvol=/@tmp,defaults,noatime,compress=zstd:1 0 0
+UUID=685f1655-1dc1-4c98-93f4-ab17def88368 /var/log       btrfs   subvol=/@log,defaults,noatime,compress=zstd:1 0 0
+tmpfs                                     /tmp           tmpfs   defaults,noatime,mode=1777 0 0
+UUID=645dd78d-0945-405f-b0ac-9cb09ea003cf  /mnt/Storage  ext4  defaults,nofail  0  2
+
+# Network Share from Laptop (Tailscale IP: 100.70.236.70)
+//100.70.236.70/Home  /mnt/Laptop_Home  cifs  credentials=/etc/samba/credentials,uid=1000,gid=1000,users,noauto,nofail,_netdev 0  0
+```
+
+---
+
+#### 2. Laptop (`void` — Tailscale IP: `100.70.236.70`)
+
+##### `/etc/ksmbd/ksmbd.conf` (Server configuration)
+Exports the laptop's `/home/void` as `[Home]` with kernel stability options:
+
+```ini
+[global]
+    netbios name = Laptop
+    workgroup = WORKGROUP
+    server string = KSMBD Laptop
+    smb2 leases = no
+
+[Home]
+    path = /home/void
+    read only = no
+    guest ok = no
+    valid users = @void
+    force user = void
+    force group = void
+    oplocks = no
+```
+
+##### `/etc/fstab` (Client mount configuration)
+Mounts the Host PC's Storage and Home shares to `/mnt/PC_Storage` and `/mnt/PC_Home` on demand:
+
+```text
+# Static file system information (/etc/fstab on Laptop)
+UUID=317D-E78B                            /boot          vfat    defaults,umask=0077 0 2
+UUID=cba94aa8-ccc0-4a6f-ad7b-c1977137c130 /              btrfs   subvol=/@,defaults,noatime,compress=zstd 0 0
+UUID=cba94aa8-ccc0-4a6f-ad7b-c1977137c130 /home          btrfs   subvol=/@home,defaults,noatime,compress=zstd 0 0
+UUID=cba94aa8-ccc0-4a6f-ad7b-c1977137c130 /root          btrfs   subvol=/@root,defaults,noatime,compress=zstd 0 0
+UUID=cba94aa8-ccc0-4a6f-ad7b-c1977137c130 /srv           btrfs   subvol=/@srv,defaults,noatime,compress=zstd 0 0
+UUID=cba94aa8-ccc0-4a6f-ad7b-c1977137c130 /var/cache     btrfs   subvol=/@cache,defaults,noatime,compress=zstd 0 0
+UUID=cba94aa8-ccc0-4a6f-ad7b-c1977137c130 /var/tmp       btrfs   subvol=/@tmp,defaults,noatime,compress=zstd 0 0
+UUID=cba94aa8-ccc0-4a6f-ad7b-c1977137c130 /var/log       btrfs   subvol=/@log,defaults,noatime,compress=zstd 0 0
+tmpfs                                     /tmp           tmpfs   defaults,noatime,mode=1777 0 0
+
+# Network Shares from Host PC (Tailscale IP: 100.117.73.75)
+//100.117.73.75/Storage  /mnt/PC_Storage  cifs  credentials=/etc/samba/credentials,uid=1000,gid=1000,users,vers=3.1.1,noauto,nofail,_netdev  0  0
+//100.117.73.75/Home     /mnt/PC_Home     cifs  credentials=/etc/samba/credentials,uid=1000,gid=1000,users,vers=3.1.1,noauto,nofail,_netdev  0  0
+```
