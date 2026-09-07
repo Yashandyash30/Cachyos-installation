@@ -1,3 +1,5 @@
+  
+
 
 This complete reference guide covers everything needed to rebuild your VegasAfterglow workstation on any future CachyOS system, ensuring seamless remote access for your Galaxy Tab S9 and other Tailscale devices.
 
@@ -10,7 +12,6 @@ CachyOS enforces strict package management rules (PEP 668), so you must explicit
 ```fish
 conda create -n vegas_env python=3.11 -y
 conda activate vegas_env
-
 ```
 
 2. Install an isolated pip package, then install the physics engine with MCMC tools:
@@ -18,7 +19,6 @@ conda activate vegas_env
 ```fish
 conda install pip -y
 python -m pip install VegasAfterglow[mcmc]
-
 ```
 
 3. Bind this environment to Jupyter as a selectable kernel:
@@ -26,7 +26,6 @@ python -m pip install VegasAfterglow[mcmc]
 ```fish
 conda install conda-forge::ipykernel -y
 python -m ipykernel install --user --name=vegas_env --display-name="Python (VegasAfterglow)"
-
 ```
 
 ### 2. Web Tool Initialization
@@ -129,7 +128,13 @@ function vegasweb --description "Launch VegasAfterglow web tool on Tailscale"
     echo "VegasAfterglow Web Tool is starting up!"
     echo "--> PC Local Access: http://localhost:3000"
     echo "--> Remote Access (Tailscale): http://$TS_IP:3000"
-    echo "Press Ctrl+C to stop both servers."
+    echo " -> Backend API Docs         : http://$SERVER_IP:8000/docs"
+    echo "================================================="
+    echo " Logs:"
+    echo "   Backend:  tail -f /tmp/vegas_backend.log"
+    echo "   Frontend: tail -f /tmp/vegas_frontend.log"
+    echo " Press [Ctrl+C] to stop both servers."
+    echo "================================================="
 
     trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; echo '\nServers stopped cleanly.'; trap - EXIT INT TERM" EXIT INT TERM
     wait

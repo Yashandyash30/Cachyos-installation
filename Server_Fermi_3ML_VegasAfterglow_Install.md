@@ -434,7 +434,7 @@ python -m ipykernel install --user --name threeML --display-name "Python (threeM
 
 ## 4. Part C — VegasAfterglow
 
-VegasAfterglow is a GRB afterglow modeling engine with MCMC support. On the server, we install only the **Python library** (no web tool needed — the web UI is designed for local workstations).
+VegasAfterglow is a GRB afterglow modeling engine with MCMC support. This section covers installing the core **Python library**, registering its Jupyter kernel, and configuring the **interactive Web Tool dashboard** for remote access across your devices.
 
 ### 4.1 Create the VegasAfterglow Environment
 
@@ -477,6 +477,228 @@ python -m ipykernel install --user --name=vegas_env --display-name="Python (Vega
 ```bash
 python -c "import VegasAfterglow; print('VegasAfterglow OK')"
 ```
+
+### 4.5 Web Tool Initialization (Interactive Web Dashboard)
+
+> [!NOTE]
+> The VegasAfterglow web dashboard consists of a **FastAPI backend** (Python) and a **Next.js frontend** (Node.js). Because CentOS 7 lacks modern system Node.js and you do not have root access, Node.js and npm are installed directly into your `vegas_env` Conda environment.
+
+#### 1. Install Node.js and Clone the Repository
+
+Switch to `bash`, activate `vegas_env`, install Node.js via Conda, and clone the codebase:
+
+```bash
+bash
+conda activate vegas_env
+
+# Install Node.js (v20 LTS) and npm into the conda environment (No root required)
+mamba install -n vegas_env -c conda-forge nodejs -y
+
+# Verify Node.js and npm
+node -v
+npm -v
+
+# Clone the VegasAfterglow repository to your home directory
+cd ~
+git clone https://github.com/YihanWangAstro/VegasAfterglow.git
+cd VegasAfterglow
+```
+
+#### 2. Configure the Backend
+
+> [!IMPORTANT]
+> Do **NOT** run `pip install -e '../..[webtool]'` on the server! The `-e` flag forces pip to compile VegasAfterglow's C++ extension (`VegasAfterglowC`) from source code. On CentOS 7, the system compiler `/usr/bin/g++` is GCC 4.8.5, which fails because the C++ core requires **C++20**.
+>
+> VegasAfterglow is **already installed** from pre-built binary wheels in Step 4.2. You only need to install the webtool runtime dependencies (FastAPI, Uvicorn, Plotly, etc.), all of which have pre-compiled wheels:
+
+```bash
+cd ~/VegasAfterglow/webtool/backend
+
+# 1. Install the webtool backend dependencies without compiling C++
+python -m pip install fastapi "uvicorn[standard]" pydantic plotly kaleido python-dotenv orjson
+
+# 2. Prevent backend from importing uncompiled local git repo (Critical fix!)
+# By default, app/main.py injects the git repo root into sys.path, which shadows
+# the installed wheel and crashes with "No module named 'VegasAfterglow.VegasAfterglowC'".
+# Comment out all 3 lines cleanly to prevent an IndentationError:
+sed -i '/if _repo_root and (_repo_root/,+2s/^/# /' app/main.py
+
+# 3. Fail-safe: Copy the compiled .so library into the local repo as well
+cp -v ~/miniforge3/envs/vegas_env/lib/python3.11/site-packages/VegasAfterglow/VegasAfterglowC* ~/VegasAfterglow/VegasAfterglow/ 2>/dev/null || true
+
+# 4. Verify backend loads cleanly
+python -c "from app.main import app; print('Backend Ready: ' + app.title)"
+```
+
+#### 3. Configure the Frontend
+
+Initialize the Next.js frontend dependencies:
+
+```bash
+cd ~/VegasAfterglow/webtool/frontend
+
+# Create local environment configuration
+cp .env.local.example .env.local
+
+# Install Node modules
+npm install
+```
+
+### 4.6 Network & Security Overrides (Remote / Multi-Device Access)
+
+By default, the web tool strictly blocks cross-device communication. To access the dashboard remotely from your local PC, laptop, or tablet (e.g. Galaxy Tab S9), apply these two overrides:
+
+#### 1. Backend CORS Override (FastAPI)
+Open `~/VegasAfterglow/webtool/backend/app/main.py`:
+```bash
+nano ~/VegasAfterglow/webtool/backend/app/main.py
+```
+Locate the `CORSMiddleware` configuration block and change `allow_origins` to allow wildcard connections:
+```python
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows connections from external IPs and SSH tunnels
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+Save with `Ctrl+O`, `Enter`, and exit with `Ctrl+X`.
+
+#### 2. Frontend CSP Override (Next.js)
+Open `~/VegasAfterglow/webtool/frontend/next.config.mjs` (or `.js`):
+```bash
+nano ~/VegasAfterglow/webtool/frontend/next.config.mjs
+```
+In the `Content-Security-Policy` header block, append `http://*:8000` to the `connect-src` whitelist:
+```javascript
+"connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 https://api.vegasafterglow.com https://*.vegasafterglow.com http://*:8000",
+```
+Save with `Ctrl+O`, `Enter`, and exit with `Ctrl+X`.
+
+> [!IMPORTANT]
+> Whenever you modify `next.config.mjs`, purge the Next.js build cache before starting the server so the new security policy takes effect:
+> ```bash
+> rm -rf ~/VegasAfterglow/webtool/frontend/.next
+> ```
+
+### 4.7 All-in-One Launcher Script (`vegasweb`)
+
+Instead of opening two separate terminal tabs to start the backend and frontend manually, you can use an all-in-one launcher script. It automatically binds to the server's network IP, launches both servers, displays clickable access links, and cleanly kills both processes when you press `Ctrl+C`.
+
+#### Create `~/.local/bin/vegasweb` (Run on the server):
+
+```bash
+mkdir -p ~/.local/bin
+cat << 'EOF' > ~/.local/bin/vegasweb
+#!/bin/bash
+# VegasAfterglow Server All-in-One Launcher
+
+VEGAS_DIR="$HOME/VegasAfterglow"
+UVICORN="$HOME/miniforge3/envs/vegas_env/bin/uvicorn"
+NPM="$HOME/miniforge3/envs/vegas_env/bin/npm"
+
+# 1. Detect server's LAN IP
+SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+[ -z "$SERVER_IP" ] && SERVER_IP="127.0.0.1"
+
+echo "================================================="
+echo "   VegasAfterglow Web Tool Server Launcher       "
+echo "================================================="
+echo "Detected Server IP: $SERVER_IP"
+
+# 2. Automatically point the frontend to the backend
+sed -i '/^NEXT_PUBLIC_API_URL=/d' "$VEGAS_DIR/webtool/frontend/.env.local" 2>/dev/null
+echo "NEXT_PUBLIC_API_URL=http://$SERVER_IP:8000" >> "$VEGAS_DIR/webtool/frontend/.env.local"
+
+# 3. Clean up any stale processes on ports 8000 and 3000
+fuser -k 8000/tcp 2>/dev/null || true
+fuser -k 3000/tcp 2>/dev/null || true
+
+# 4. Start Backend in background
+echo "Starting Backend on 0.0.0.0:8000..."
+cd "$VEGAS_DIR/webtool/backend"
+"$UVICORN" app.main:app --host 0.0.0.0 --port 8000 > /tmp/vegas_backend.log 2>&1 &
+BACKEND_PID=$!
+
+# 5. Start Frontend in background
+echo "Starting Frontend on 0.0.0.0:3000..."
+cd "$VEGAS_DIR/webtool/frontend"
+export PATH="$HOME/miniforge3/envs/vegas_env/bin:$PATH"
+"$NPM" run dev -- -H 0.0.0.0 -p 3000 > /tmp/vegas_frontend.log 2>&1 &
+FRONTEND_PID=$!
+
+echo ""
+echo "================================================="
+echo " VegasAfterglow is LIVE!"
+echo " -> Direct LAN / Cross-Platform URL: http://$SERVER_IP:3000"
+echo " -> Local / SSH Port Forward URL:    http://localhost:3000"
+echo " -> Backend API Docs:                 http://$SERVER_IP:8000/docs"
+echo "================================================="
+echo " Logs:"
+echo "   Backend:  tail -f /tmp/vegas_backend.log"
+echo "   Frontend: tail -f /tmp/vegas_frontend.log"
+echo " Press [Ctrl+C] to stop both servers."
+echo "================================================="
+
+# Trap exit signals to ensure clean shutdown
+cleanup() {
+    echo -e "\nStopping VegasAfterglow servers..."
+    kill "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null
+    wait "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null
+    echo "Both servers stopped cleanly."
+    exit 0
+}
+
+trap cleanup INT TERM EXIT
+wait
+EOF
+chmod +x ~/.local/bin/vegasweb
+```
+
+Now, whenever you want to start the web dashboard, simply run:
+```bash
+vegasweb
+```
+
+---
+
+### 4.8 How Cross-Platform Access Works (Without Tailscale on the Server)
+
+Since the CentOS 7 servers do **not** have Tailscale installed, cross-platform access across your Laptop, PC, and Galaxy Tab S9 works through two reliable mechanisms:
+
+#### Scenario A: Same Institute Wi-Fi / LAN (Direct IP Access)
+If your laptop or tablet is connected to the institute Wi-Fi, Eduroam, or local LAN:
+1. Run `vegasweb` on the server.
+2. The script prints the server's internal IP (`http://172.18.1.5:3000` on ARIES, or `http://192.168.4.1:3000` on Surya).
+3. Open that address in your browser on your **Laptop, PC, or Galaxy Tab S9**. Because `allow_origins=["*"]` and `connect-src http://*:8000` were configured in Step 4.6, your tablet's browser will communicate directly with the server without any proxy required.
+
+#### Scenario B: Remote / Outside the Institute (SSH Tunneling)
+If you are outside the institute network and accessing the server over SSH:
+1. Start `vegasweb` on the server.
+2. On your **Laptop or PC**, establish an SSH port-forwarding tunnel:
+   * **For ARIES:**
+     ```bash
+     ssh -N -L 3000:localhost:3000 -L 8000:localhost:8000 shashi@172.18.1.5
+     ```
+   * **For Surya HPC:**
+     ```bash
+     ssh -N -L 3000:localhost:3000 -L 8000:localhost:8000 yashsharma@192.168.4.1
+     ```
+3. Open `http://localhost:3000` on your laptop browser.
+
+#### Scenario C: Accessing on Galaxy Tab S9 when Outside the Institute
+When you are away from the institute and using Tailscale:
+* Your **Laptop/PC** is on Tailscale and connected to the server via SSH.
+* Run the SSH tunnel on your laptop with the gateway flag (`-g`), binding to all network interfaces:
+  ```bash
+  ssh -g -N -L 3000:0.0.0.0:3000 -L 8000:0.0.0.0:8000 shashi@172.18.1.5
+  ```
+* On your **Galaxy Tab S9** (which is on Tailscale), open your tablet browser and navigate to:
+  ```text
+  http://<YOUR_LAPTOP_TAILSCALE_IP>:3000
+  ```
+  Your laptop automatically routes your tablet's requests through the SSH tunnel to the server!
 
 ---
 
@@ -583,6 +805,15 @@ conda deactivate
 | `DirectoryNotACondaEnvironmentError`     | Apply the conda-meta fix from Step 3.3                               |
 | `ucx post-link script failed`            | Reapply Step 3.2 fix, then retry the install                         |
 | `$HEADAS` is empty                       | Reapply Step 3.2, then`conda deactivate && conda activate threeML` |
+
+### VegasAfterglow Web Tool Issues
+
+| Error | Cause | Fix |
+| ----- | ----- | --- |
+| `Target VegasAfterglowC requires CXX20` during pip install | You ran `pip install -e` which tries to compile C++ using CentOS 7's ancient GCC 4.8.5. | Never build from source on the server. Install pre-compiled wheels: `python -m pip install fastapi "uvicorn[standard]" pydantic plotly kaleido python-dotenv orjson` |
+| `ModuleNotFoundError: No module named 'VegasAfterglow.VegasAfterglowC'` | `app/main.py` prepends the uncompiled local Git repo to `sys.path`, shadowing the wheel. | Run `sed -i '/if _repo_root and (_repo_root/,+2s/^/# /' app/main.py` and copy `VegasAfterglowC*.so` from `site-packages/VegasAfterglow/`. |
+| `IndentationError: expected an indented block after 'if'` | Only the inner line was commented out in `app/main.py`, leaving an empty `if` block. | Comment out the entire 3-line block with `sed -i '/if _repo_root and (_repo_root/,+2s/^/# /' app/main.py`. |
+| `NetworkError when attempting to fetch resource` / `Working Server: (down)` | Backend on port 8000 crashed on startup, or `.env.local` points to wrong IP / stale `.next` cache. | 1. Check `cat /tmp/vegas_backend.log`.<br>2. Ensure `NEXT_PUBLIC_API_URL=http://<SERVER_IP>:8000` in `.env.local`.<br>3. Purge cache: `rm -rf .next` and hard-refresh browser (`Ctrl+Shift+R`). |
 
 ### Maintenance
 
