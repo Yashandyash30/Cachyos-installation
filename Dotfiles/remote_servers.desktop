@@ -1,15 +1,25 @@
 [Desktop Entry]
 Type=Service
 MimeType=inode/directory;
-Actions=OpenSuryaTerminal;OpenARIESterminal;
+Actions=OpenSuryaTerminal;OpenSuryaIDE;OpenARIESterminal;OpenARIESide;
 X-KDE-Priority=TopLevel
 
 [Desktop Action OpenSuryaTerminal]
 Name=Open Surya HPC Terminal Here
 Icon=utilities-terminal
-Exec=fish -c 'jumpsurya "%f"'
+Exec=bash -c 'target="%u"; [ -z "$target" ] && target="%f"; target="${target#file://}"; if [[ "$target" =~ ^sftp://[^/]+(/.*)$ ]]; then target="${BASH_REMATCH[1]}"; elif [[ "$target" == /home/void/Remote/Surya* ]]; then target="${target/\/home\/void\/Remote\/Surya/\/home\/yashsharma}"; elif [[ "$target" == /mnt/Surya* ]]; then target="${target/\/mnt\/Surya/\/home\/yashsharma}"; elif [[ "$target" == /home/yashsharma* ]]; then target="$target"; elif [[ "$target" == /home/void* ]]; then target="${target/\/home\/void/\/home\/yashsharma}"; else target="/home/yashsharma"; fi; ghostty -e fish -c "jumpsurya \"$target\"; exec fish"'
+
+[Desktop Action OpenSuryaIDE]
+Name=Open Surya HPC (Antigravity IDE) Here
+Icon=vscode
+Exec=bash -c 'target="%u"; [ -z "$target" ] && target="%f"; target="${target#file://}"; if [[ "$target" =~ ^sftp://[^/]+(/.*)$ ]]; then target="${BASH_REMATCH[1]}"; elif [[ "$target" == /home/void/Remote/Surya* ]]; then target="${target/\/home\/void\/Remote\/Surya/\/home\/yashsharma}"; elif [[ "$target" == /mnt/Surya* ]]; then target="${target/\/mnt\/Surya/\/home\/yashsharma}"; elif [[ "$target" == /home/yashsharma* ]]; then target="$target"; elif [[ "$target" == /home/void* ]]; then target="${target/\/home\/void/\/home\/yashsharma}"; else target="/home/yashsharma"; fi; antigravity-ide --folder-uri "vscode-remote://ssh-remote+surya$target"'
 
 [Desktop Action OpenARIESterminal]
 Name=Open ARIES Terminal Here
 Icon=utilities-terminal
-Exec=fish -c 'jumparies "%f"'
+Exec=bash -c 'target="%u"; [ -z "$target" ] && target="%f"; target="${target#file://}"; if [[ "$target" =~ ^sftp://[^/]+(/.*)$ ]]; then target="${BASH_REMATCH[1]}"; elif [[ "$target" == /home/void/Remote/ARIES* ]]; then target="${target/\/home\/void\/Remote\/ARIES/\/home\/shashi}"; elif [[ "$target" == /mnt/ARIES* ]]; then target="${target/\/mnt\/ARIES/\/home\/shashi}"; elif [[ "$target" == /home/shashi* ]]; then target="$target"; elif [[ "$target" == /home/void* ]]; then target="${target/\/home\/void/\/home\/shashi}"; else target="/home/shashi"; fi; ghostty -e fish -c "jumparies \"$target\"; exec fish"'
+
+[Desktop Action OpenARIESide]
+Name=Open ARIES (Antigravity IDE) Here
+Icon=vscode
+Exec=bash -c 'target="%u"; [ -z "$target" ] && target="%f"; target="${target#file://}"; if [[ "$target" =~ ^sftp://[^/]+(/.*)$ ]]; then target="${BASH_REMATCH[1]}"; elif [[ "$target" == /home/void/Remote/ARIES* ]]; then target="${target/\/home\/void\/Remote\/ARIES/\/home\/shashi}"; elif [[ "$target" == /mnt/ARIES* ]]; then target="${target/\/mnt\/ARIES/\/home\/shashi}"; elif [[ "$target" == /home/shashi* ]]; then target="$target"; elif [[ "$target" == /home/void* ]]; then target="${target/\/home\/void/\/home\/shashi}"; else target="/home/shashi"; fi; antigravity-ide --folder-uri "vscode-remote://ssh-remote+aries$target"'

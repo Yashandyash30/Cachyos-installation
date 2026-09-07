@@ -103,31 +103,81 @@ ds9 &
 
 ---
 
-## 5. Dolphin Context Menu Integration
+## 5. Dolphin Context Menu Integration (Terminal & Antigravity IDE)
 
-To right-click any remote folder in Dolphin and open an instant terminal or Antigravity IDE on Surya or ARIES:
+Modeled directly on [08_Advanced_Bidirectional_Remote_Environments.md](file:///home/void/Cachyos-installation/Configuration/08_Advanced_Bidirectional_Remote_Environments.md), you can right-click any directory in Dolphin (whether browsing local paths, mounts like `/mnt/Surya` / `/mnt/ARIES`, or KIO `sftp://` URLs) to instantly open an interactive terminal or the Antigravity IDE directly connected over SSH.
 
-Create `~/.local/share/kio/servicemenus/remote_servers.desktop` on your Laptop and PC:
+### 5.1 Service Menu File (`remote_servers.desktop`)
+
+Saved at `~/.local/share/kio/servicemenus/remote_servers.desktop` on both **PC** and **Laptop**:
 
 ```ini
 [Desktop Entry]
 Type=Service
 MimeType=inode/directory;
-Actions=OpenSuryaTerminal;OpenARIESterminal;
+Actions=OpenSuryaTerminal;OpenSuryaIDE;OpenARIESterminal;OpenARIESide;
 X-KDE-Priority=TopLevel
 
 [Desktop Action OpenSuryaTerminal]
 Name=Open Surya HPC Terminal Here
 Icon=utilities-terminal
-Exec=fish -c 'jumpsurya "%f"'
+Exec=bash -c 'target="%u"; [ -z "$target" ] && target="%f"; target="${target#file://}"; if [[ "$target" =~ ^sftp://[^/]+(/.*)$ ]]; then target="${BASH_REMATCH[1]}"; elif [[ "$target" == /mnt/Surya* ]]; then target="${target/\/mnt\/Surya/\/home\/yashsharma}"; elif [[ "$target" == /home/yashsharma* ]]; then target="$target"; elif [[ "$target" == /home/void* ]]; then target="${target/\/home\/void/\/home\/yashsharma}"; else target="/home/yashsharma"; fi; ghostty -e fish -c "jumpsurya \"$target\"; exec fish"'
+
+[Desktop Action OpenSuryaIDE]
+Name=Open Surya HPC (Antigravity IDE) Here
+Icon=vscode
+Exec=bash -c 'target="%u"; [ -z "$target" ] && target="%f"; target="${target#file://}"; if [[ "$target" =~ ^sftp://[^/]+(/.*)$ ]]; then target="${BASH_REMATCH[1]}"; elif [[ "$target" == /mnt/Surya* ]]; then target="${target/\/mnt\/Surya/\/home\/yashsharma}"; elif [[ "$target" == /home/yashsharma* ]]; then target="$target"; elif [[ "$target" == /home/void* ]]; then target="${target/\/home\/void/\/home\/yashsharma}"; else target="/home/yashsharma"; fi; antigravity-ide --folder-uri "vscode-remote://ssh-remote+surya$target"'
 
 [Desktop Action OpenARIESterminal]
 Name=Open ARIES Terminal Here
 Icon=utilities-terminal
-Exec=fish -c 'jumparies "%f"'
+Exec=bash -c 'target="%u"; [ -z "$target" ] && target="%f"; target="${target#file://}"; if [[ "$target" =~ ^sftp://[^/]+(/.*)$ ]]; then target="${BASH_REMATCH[1]}"; elif [[ "$target" == /mnt/ARIES* ]]; then target="${target/\/mnt\/ARIES/\/home\/shashi}"; elif [[ "$target" == /home/shashi* ]]; then target="$target"; elif [[ "$target" == /home/void* ]]; then target="${target/\/home\/void/\/home\/shashi}"; else target="/home/shashi"; fi; ghostty -e fish -c "jumparies \"$target\"; exec fish"'
+
+[Desktop Action OpenARIESide]
+Name=Open ARIES (Antigravity IDE) Here
+Icon=vscode
+Exec=bash -c 'target="%u"; [ -z "$target" ] && target="%f"; target="${target#file://}"; if [[ "$target" =~ ^sftp://[^/]+(/.*)$ ]]; then target="${BASH_REMATCH[1]}"; elif [[ "$target" == /mnt/ARIES* ]]; then target="${target/\/mnt\/ARIES/\/home\/shashi}"; elif [[ "$target" == /home/shashi* ]]; then target="$target"; elif [[ "$target" == /home/void* ]]; then target="${target/\/home\/void/\/home\/shashi}"; else target="/home/shashi"; fi; antigravity-ide --folder-uri "vscode-remote://ssh-remote+aries$target"'
 ```
 
-Refresh Dolphin service menus:
+### 5.2 Smart Path Translation Logic
+
+- **SFTP URL (`sftp://...`)**: When browsing remote servers via Dolphin's KIO worker, extracts the true absolute server path.
+- **Mounts (`/mnt/Surya*` / `/mnt/ARIES*`)**: Dynamically translates local mount paths into `/home/yashsharma` or `/home/shashi`.
+- **Local Paths**: If right-clicking a local folder or outside mounts, smoothly defaults to the user's remote home directory.
+
+### 5.3 Apply & Refresh
+
+To register changes with KDE sycoca:
 ```bash
 kbuildsycoca6
 ```
+
+### 5.4 CentOS 7 GLIBC 2.28 Compatibility Layer & Auto-Patch Hook
+
+Modern Antigravity IDE / VS Code Remote-SSH requires `glibc >= 2.28`. Because CentOS 7 natively provides `glibc 2.17`, both **ARIES** and **Surya HPC** have been configured with a user-space AlmaLinux 8 `glibc 2.28` and `patchelf` inside `~/local/glibc/`. 
+
+#### 1. Self-Healing Hook (Automated on Updates)
+To ensure future Antigravity IDE updates never break the connection, a self-healing check is installed at the top of `~/.bashrc` on both **ARIES** and **Surya HPC**:
+
+```bash
+# === Antigravity IDE Auto-Patch Hook (CentOS 7 GLIBC 2.28 Compatibility) ===
+if [ -d "$HOME/.antigravity-ide-server/bin" ] && [ -x "$HOME/bin/patchelf" ]; then
+    for node_bin in "$HOME"/.antigravity-ide-server/bin/*/node; do
+        if [ -f "$node_bin" ] && [ ! -f "$node_bin.patched" ]; then
+            "$HOME/bin/patchelf" \
+                --set-interpreter "$HOME/local/glibc/usr/lib64/ld-linux-x86-64.so.2" \
+                --set-rpath "$HOME/local/glibc/usr/lib64" \
+                "$node_bin" 2>/dev/null && touch "$node_bin.patched"
+        fi
+    done
+fi
+# ===========================================================================
+```
+Whenever Antigravity IDE connects via SSH, this hook executes in ~5ms. If a newly downloaded server runtime from an update is detected, it automatically patches `node` on the fly before launching.
+
+#### 2. Manual Pre-Sync Command (`patch_remote_ide`)
+Available on both your **PC** and **Laptop**:
+```fish
+patch_remote_ide
+```
+This single command detects your newest local Antigravity IDE server version and syncs/patches it immediately to both ARIES and Surya HPC in seconds.

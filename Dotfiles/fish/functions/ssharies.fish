@@ -1,7 +1,7 @@
-function ssharies --description 'SSH into ARIES server (instant clean login)'
+function ssharies --description 'SSH into ARIES server (instant clean login with Jupyter tunnel)'
     if test (count $argv) -eq 0
-        ssh -t shashi@172.18.1.5 "exec bash --noprofile --rcfile ~/.bashrc"
+        ssh -t aries "exec bash --noprofile --rcfile ~/.bashrc"
     else
-        ssh shashi@172.18.1.5 $argv
+        ssh aries $argv
     end
 end

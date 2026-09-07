@@ -1,13 +1,26 @@
-Host surya
+Host surya 192.168.4.1
     HostName 192.168.4.1
     User yashsharma
     IdentityFile ~/.ssh/id_ed25519
+    ForwardX11 yes
+    LocalForward 8888 localhost:8888
+    LocalForward 8889 localhost:8889
+    LocalForward 8890 localhost:8890
+    LocalForward 8891 localhost:8891
+    LocalForward 8892 localhost:8892
+    LocalForward 8893 localhost:8893
 
-Host aries
+Host aries 172.18.1.5
     HostName 172.18.1.5
     User shashi
     IdentityFile ~/.ssh/id_ed25519
     ForwardX11 yes
+    LocalForward 8888 localhost:8888
+    LocalForward 8889 localhost:8889
+    LocalForward 8890 localhost:8890
+    LocalForward 8891 localhost:8891
+    LocalForward 8892 localhost:8892
+    LocalForward 8893 localhost:8893
 
 Host laptop
     HostName 100.70.236.70

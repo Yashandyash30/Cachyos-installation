@@ -107,6 +107,89 @@ If an old session gets hung after a network drop or unexpected disconnection:
    ```
 3. When reconnecting in X2Go Client, if an old session appears in the list, click **Terminate** (Stop/Trash icon) or **New** instead of resuming a broken session.
 
+#### C. Fixing Frozen & Uncloseable "Ghost Windows" in Niri (`xwayland-satellite`)
+
+##### The Symptom
+The X2Go remote desktop window suddenly freezes into a static picture. When you try to close it:
+* Keyboard shortcuts (`Mod+Q` / `close-window`) are completely ignored.
+* Running `killall -9 x2goclient nxproxy` in a terminal outputs `no process found`, but the frozen window frame remains stuck on your desktop.
+
+##### Root Cause Analysis
+1. **Buffer Desync during Tiling / Fullscreen:**  
+   Niri is a scrolling/tiling Wayland compositor. X2Go's client window encapsulates a full nested X11 root display (`nxproxy`). Whenever Niri rearranges columns, resizes tiles, or shifts focus, it floods `xwayland-satellite` with `ConfigureNotify` events. `nxproxy` attempts to renegotiate display geometry across the network to ARIES. If this roundtrip lags or if the window is placed in Fullscreen mode, `xwayland-satellite` loses frame synchronization with Xwayland's surface, freezing the display buffer.
+2. **Orphaned Wayland Surface ("Ghost Window"):**  
+   If `x2goclient` dies ungracefully or terminates while the socket is blocked, `xwayland-satellite` continues holding the dead X11 surface attached to Niri. When Niri sends `close-window`, it asks `xwayland-satellite` to emit an X11 `WM_DELETE_WINDOW` signal. Because the underlying client process is already dead, no one receives the signal, and `xwayland-satellite` never unmaps the surface—leaving a permanent visual "ghost" on screen.
+
+##### Emergency Fix (Instantly Clear the Stuck Window)
+Run this single command in your local terminal on your laptop/PC:
+
+```bash
+pkill -9 -f xwayland-satellite
+```
+
+> [!IMPORTANT]
+> **Why `-f` is required:** Under Linux, process names stored in `/proc/$PID/comm` are limited to **15 characters**. The name `xwayland-satellite` is 18 characters long. Running plain `pkill xwayland-satellite` will fail to match and do nothing. The `-f` flag tells `pkill` to match against the full command-line string.
+>
+> Killing `xwayland-satellite` instantly destroys all orphaned X11 surfaces without harming Niri or your native Wayland applications (Ghostty, Zen, Dolphin, IDE). Niri will automatically respawn a clean `xwayland-satellite` instance when the next X11 application launches.
+
+##### Preventing Freezes in Niri
+If you need to use X2Go on Niri, apply these two safeguards:
+
+1. **Add a Floating Window Rule in Niri:**  
+   Prevent Niri from dynamically resizing and applying blur/shaders to X2Go:
+   In `~/.config/niri/config.kdl`:
+   ```kdl
+   window-rule {
+       match app-id=r"^x2go"
+       match app-id=r"^X2GO"
+       open-floating true
+       opacity 1.0
+   }
+   ```
+2. **Lock X2Go to Fixed Resolution (Never use Fullscreen):**  
+   In X2Go Client ➔ Session Preferences ➔ **Input/Output**:
+   * Set display to a fixed custom resolution (e.g. `1920x1080` or `1600x900`).
+   * **Uncheck** *"Resize remote screen to local window"*.
+   * Avoid triggering Fullscreen mode.
+
+##### Best Practice: Avoid Remote Desktop for Jupyter & Terminal Work
+For developing, coding, or data science on ARIES, remote desktop sessions are unnecessary and prone to network latency. Use native Wayland tooling instead:
+* **Jupyter Notebooks:** Run headless on ARIES and forward via SSH tunnel to your local Zen browser (`tunnelaries`). Runs at 240Hz with 0 latency (see [Section 7](#7-installing--running-jupyter-notebook--jupyterlab-on-aries)).
+* **Terminals & Scripts:** Use native terminal (`ghostty`) via `ssh aries` or persistent Zellij (`jumpariesz`).
+* **Astronomical GUI Apps (DS9, MESA, RMFIT):** Forward only the application window using `guiaries <command>`.
+
+#### D. Fixing "Connection failed. CondaError: Run 'conda init' before 'conda deactivate'"
+
+##### The Symptom
+When attempting to connect to ARIES with X2Go Client, an error dialog immediately aborts the connection:
+> *"Connection failed. CondaError: Run 'conda init' before 'conda deactivate' CondaError: Run 'conda init' before 'conda deactivate'"*
+
+##### Root Cause Analysis
+1. **SSHD Execution of Remote Commands:**  
+   When X2Go negotiates a session, it executes non-interactive SSH commands on ARIES (e.g. `x2golistsessions`, `x2gostartagent`).
+2. **Missing Non-Interactive Guard in `~/.bashrc`:**  
+   When bash is invoked by an incoming SSH connection, it reads `~/.bashrc`. Because `~/.bashrc` lacked an interactive guard (`[[ $- != *i* ]] && return`), it automatically executed `conda initialize`, activating the `(base)` environment and setting `CONDA_PROMPT_MODIFIER="(base) "`.
+3. **Intel oneAPI Environment Conflict (`setvars.sh`):**  
+   The server's system-wide `/etc/profile.d/soft.sh` automatically calls Intel oneAPI's `. /opt/intel/oneapi/setvars.sh`. Intel's internal script (`vars.sh`) checks if a Conda environment is active (`CONDA_PROMPT_MODIFIER`). If active, it attempts to run `conda deactivate` in a loop so IntelPython does not conflict with Conda.
+4. **Shell Function Missing in Subshells:**  
+   In a non-interactive SSH subshell, `conda` is not defined as a shell function—it is invoked directly as the standalone binary `/home/shashi/miniforge3/bin/conda`. When the raw binary is invoked with `deactivate`, it throws:
+   ```text
+   CondaError: Run 'conda init' before 'conda deactivate'
+   ```
+5. **X2Go Protocol Desynchronization:**  
+   X2Go monitors the SSH stream expecting strict internal protocol strings (e.g. `X2GODATABEGIN:`). Because `CondaError` was written to stderr/stdout before X2Go's protocol output, X2Go treated the entire handshake as a failure and showed the popup.
+
+##### The Permanent Solution (Applied to ARIES)
+Prepend an interactive check at the **very first line** of `/home/shashi/.bashrc` on ARIES:
+
+```bash
+# Non-interactive guard (Prevents X2Go, SFTP, and SSH protocol pollution)
+[[ $- != *i* ]] && return
+```
+
+* **For non-interactive SSH / X2Go commands:** `~/.bashrc` immediately returns without running Conda initialization, keeping the SSH data stream completely silent and error-free.
+* **For interactive shells (terminal logins):** The check passes normally, and all Conda environments, aliases, and paths initialize as usual.
+
 ---
 
 ## 3. How to Install & Run Fastfetch (Without Root Access)
@@ -316,4 +399,92 @@ ssh aries
 ```
 *(Any arguments passed, such as `ssharies -Y` or `ssharies "free -h"`, are automatically forwarded).*
 
+---
+
+## 7. Installing & Running Jupyter Notebook / JupyterLab on ARIES
+
+The ARIES server environment runs user-space **Miniforge** located at `/home/shashi/miniforge3` with both `conda` and `mamba` available. You can host Jupyter Notebook or JupyterLab directly from ARIES and access it securely from your local PC or laptop via SSH port forwarding.
+
+### 7.1 Installation (via Mamba)
+
+Log in to ARIES and install `jupyterlab` and `notebook` into your base Miniforge environment:
+
+```bash
+# 1. SSH into ARIES
+ssh aries
+
+# 2. Install JupyterLab and classic Notebook
+mamba install -y -c conda-forge jupyterlab notebook
+```
+*(Alternatively, you can install via pip: `pip install --user jupyterlab notebook`)*
+
+### 7.2 Register Existing Conda Environments as Kernels
+
+To allow Jupyter to execute code within your existing research environments (`fermi`, `threeML`, `vegas_env`), install `ipykernel` in each environment and register them with Jupyter:
+
+```bash
+# 1. Ensure ipykernel is installed in your target environments
+mamba install -y -n fermi ipykernel
+mamba install -y -n threeML ipykernel
+mamba install -y -n vegas_env ipykernel
+
+# 2. Register each environment as a user-level kernel spec
+python -m ipykernel install --user --name fermi --display-name "Python (fermi)"
+python -m ipykernel install --user --name threeML --display-name "Python (threeML)"
+python -m ipykernel install --user --name vegas_env --display-name "Python (vegas_env)"
+```
+
+To view and verify all registered kernels at any time:
+```bash
+jupyter kernelspec list
+```
+
+### 7.3 Launching Jupyter in Headless Mode (via Zellij)
+
+Because ARIES is a remote server, launch Jupyter with `--no-browser`. It is strongly recommended to run it inside a persistent **Zellij** session so the server keeps running even if you close your terminal or disconnect your network:
+
+```bash
+# 1. Start or attach to a persistent Zellij session named 'jupyter'
+zellij attach -c jupyter
+
+# 2. Launch the Jupyter Notebook server (or use 'jupyter lab')
+jupyter notebook --no-browser --port=8888
+```
+
+* **Detach without stopping Jupyter:** Press `Ctrl + o`, then hit `d`. The notebook server will remain running in the background.
+* **Re-attach later:** Run `zellij attach jupyter` anytime to check logs or copy token URLs.
+
+When Jupyter launches, it will print connection URLs containing an access token:
+```text
+http://localhost:8888/tree?token=abcdef1234567890...
+```
+
+### 7.4 Connecting from Local Machine (PC / Laptop)
+
+Open a terminal on your local machine and establish an SSH port-forwarding tunnel:
+
+```bash
+ssh -N -L 8888:localhost:8888 aries
+```
+
+Now, open your web browser locally and navigate to:
+```text
+http://localhost:8888
+```
+Paste the authentication token generated in step 7.3 when prompted.
+
+#### Local Fish Shell Shortcut (`tunnelaries`)
+To avoid remembering the port-forwarding flags, you can add this function to `~/.config/fish/functions/tunnelaries.fish` on your local system:
+
+```fish
+function tunnelaries --description 'Open SSH tunnel for Jupyter on ARIES'
+    set port 8888
+    if test -n "$argv[1]"
+        set port $argv[1]
+    end
+    echo "Forwarding localhost:$port to ARIES:$port... (Press Ctrl+C to disconnect)"
+    ssh -N -L $port:localhost:$port aries
+end
+```
+With this function saved, simply run `tunnelaries` from your local terminal whenever you want to open the web connection.
 
