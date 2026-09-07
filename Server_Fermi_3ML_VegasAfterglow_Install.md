@@ -586,7 +586,9 @@ Save with `Ctrl+O`, `Enter`, and exit with `Ctrl+X`.
 
 Instead of opening two separate terminal tabs to start the backend and frontend manually, you can use an all-in-one launcher script. It automatically binds to the server's network IP, launches both servers, displays clickable access links, and cleanly kills both processes when you press `Ctrl+C`.
 
-#### Create `~/.local/bin/vegasweb` (Run on the server):
+#### Option A: Bash Script (`~/.local/bin/vegasweb`)
+
+If you use Bash as your shell on the server:
 
 ```bash
 mkdir -p ~/.local/bin
@@ -618,14 +620,14 @@ fuser -k 3000/tcp 2>/dev/null || true
 # 4. Start Backend in background
 echo "Starting Backend on 0.0.0.0:8000..."
 cd "$VEGAS_DIR/webtool/backend"
-"$UVICORN" app.main:app --host 0.0.0.0 --port 8000 > /tmp/vegas_backend.log 2>&1 &
+"$UVICORN" app.main:app --host 0.0.0.0 --port 8000 </dev/null > /tmp/vegas_backend.log 2>&1 &
 BACKEND_PID=$!
 
 # 5. Start Frontend in background
 echo "Starting Frontend on 0.0.0.0:3000..."
 cd "$VEGAS_DIR/webtool/frontend"
 export PATH="$HOME/miniforge3/envs/vegas_env/bin:$PATH"
-"$NPM" run dev -- -H 0.0.0.0 -p 3000 > /tmp/vegas_frontend.log 2>&1 &
+"$NPM" run dev -- -H 0.0.0.0 -p 3000 </dev/null > /tmp/vegas_frontend.log 2>&1 &
 FRONTEND_PID=$!
 
 echo ""
@@ -645,7 +647,9 @@ echo "================================================="
 cleanup() {
     echo -e "\nStopping VegasAfterglow servers..."
     kill "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null
-    wait "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null
+    fuser -k 8000/tcp 2>/dev/null || true
+    fuser -k 3000/tcp 2>/dev/null || true
+    stty sane 2>/dev/null || true
     echo "Both servers stopped cleanly."
     exit 0
 }
@@ -656,7 +660,72 @@ EOF
 chmod +x ~/.local/bin/vegasweb
 ```
 
-Now, whenever you want to start the web dashboard, simply run:
+#### Option B: Fish Function Script (`~/.config/fish/functions/vegasweb.fish`)
+
+If you use Fish shell on the server:
+
+```fish
+mkdir -p ~/.config/fish/functions
+cat << 'EOF' > ~/.config/fish/functions/vegasweb.fish
+function vegasweb --description "Launch VegasAfterglow Web Tool on Server"
+    set -l VEGAS_DIR "$HOME/VegasAfterglow"
+    set -l UVICORN "$HOME/miniforge3/envs/vegas_env/bin/uvicorn"
+    set -l NPM "$HOME/miniforge3/envs/vegas_env/bin/npm"
+
+    # 1. Detect server's LAN IP
+    set -l SERVER_IP (hostname -I 2>/dev/null | awk '{print $1}')
+    if test -z "$SERVER_IP"
+        set SERVER_IP "127.0.0.1"
+    end
+
+    echo "================================================="
+    echo "   VegasAfterglow Web Tool Server Launcher       "
+    echo "================================================="
+    echo "Detected Server IP: $SERVER_IP"
+
+    # 2. Automatically point the frontend to the backend
+    sed -i '/^NEXT_PUBLIC_API_URL=/d' "$VEGAS_DIR/webtool/frontend/.env.local" 2>/dev/null
+    echo "NEXT_PUBLIC_API_URL=http://$SERVER_IP:8000" >> "$VEGAS_DIR/webtool/frontend/.env.local"
+
+    # 3. Clean up any stale processes on ports 8000 and 3000
+    fuser -k 8000/tcp 2>/dev/null; or true
+    fuser -k 3000/tcp 2>/dev/null; or true
+
+    # 4. Start Backend in background
+    echo "Starting Backend on 0.0.0.0:8000..."
+    cd "$VEGAS_DIR/webtool/backend"
+    $UVICORN app.main:app --host 0.0.0.0 --port 8000 </dev/null > /tmp/vegas_backend.log 2>&1 &
+    set -l BACKEND_PID $last_pid
+
+    # 5. Start Frontend in background
+    echo "Starting Frontend on 0.0.0.0:3000..."
+    set -l START_DIR $PWD
+    cd "$VEGAS_DIR/webtool/frontend"
+    set -x PATH "$HOME/miniforge3/envs/vegas_env/bin" $PATH
+    $NPM run dev -- -H 0.0.0.0 -p 3000 </dev/null > /tmp/vegas_frontend.log 2>&1 &
+    set -l FRONTEND_PID $last_pid
+    cd "$START_DIR"
+
+    echo ""
+    echo "================================================="
+    echo " VegasAfterglow is LIVE!"
+    echo " -> Direct LAN / Cross-Platform URL: http://$SERVER_IP:3000"
+    echo " -> Local / SSH Port Forward URL:    http://localhost:3000"
+    echo " -> Backend API Docs:                http://$SERVER_IP:8000/docs"
+    echo "================================================="
+    echo " Logs:"
+    echo "   Backend:  tail -f /tmp/vegas_backend.log"
+    echo "   Frontend: tail -f /tmp/vegas_frontend.log"
+    echo " Press [Ctrl+C] to stop both servers."
+    echo "================================================="
+
+    trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; fuser -k 8000/tcp 2>/dev/null; fuser -k 3000/tcp 2>/dev/null; stty sane 2>/dev/null; command echo ''; command echo 'Servers stopped cleanly.'; trap - EXIT INT TERM" EXIT INT TERM
+    wait
+end
+EOF
+```
+
+Now, whether you are in Bash or Fish, simply run:
 ```bash
 vegasweb
 ```

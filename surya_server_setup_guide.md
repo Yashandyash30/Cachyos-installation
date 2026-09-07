@@ -349,7 +349,7 @@ rm -rf .next
 
 ### 6.5 Install the `vegasweb` All-in-One Launcher
 
-Create a single-command launcher that starts both servers, outputs connection URLs, and handles `Ctrl+C` clean shutdown:
+#### Option A: Bash Script (`~/.local/bin/vegasweb`)
 
 ```bash
 mkdir -p ~/.local/bin
@@ -377,14 +377,14 @@ fuser -k 3000/tcp 2>/dev/null || true
 # 3. Start Backend
 echo "Starting Backend on 0.0.0.0:8000..."
 cd "$VEGAS_DIR/webtool/backend"
-"$UVICORN" app.main:app --host 0.0.0.0 --port 8000 > /tmp/vegas_backend.log 2>&1 &
+"$UVICORN" app.main:app --host 0.0.0.0 --port 8000 </dev/null > /tmp/vegas_backend.log 2>&1 &
 BACKEND_PID=$!
 
 # 4. Start Frontend
 echo "Starting Frontend on 0.0.0.0:3000..."
 cd "$VEGAS_DIR/webtool/frontend"
 export PATH="$HOME/miniforge3/envs/vegas_env/bin:$PATH"
-"$NPM" run dev -- -H 0.0.0.0 -p 3000 > /tmp/vegas_frontend.log 2>&1 &
+"$NPM" run dev -- -H 0.0.0.0 -p 3000 </dev/null > /tmp/vegas_frontend.log 2>&1 &
 FRONTEND_PID=$!
 
 echo ""
@@ -403,7 +403,9 @@ echo "================================================="
 cleanup() {
     echo -e "\nStopping VegasAfterglow servers..."
     kill "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null
-    wait "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null
+    fuser -k 8000/tcp 2>/dev/null || true
+    fuser -k 3000/tcp 2>/dev/null || true
+    stty sane 2>/dev/null || true
     echo "Both servers stopped cleanly."
     exit 0
 }
@@ -414,11 +416,70 @@ EOF
 chmod +x ~/.local/bin/vegasweb
 ```
 
+#### Option B: Fish Function Script (`~/.config/fish/functions/vegasweb.fish`)
+
+If you use Fish shell on Surya:
+
+```fish
+mkdir -p ~/.config/fish/functions
+cat << 'EOF' > ~/.config/fish/functions/vegasweb.fish
+function vegasweb --description "Launch VegasAfterglow Web Tool on Surya"
+    set -l VEGAS_DIR "$HOME/VegasAfterglow"
+    set -l UVICORN "$HOME/miniforge3/envs/vegas_env/bin/uvicorn"
+    set -l NPM "$HOME/miniforge3/envs/vegas_env/bin/npm"
+    set -l SERVER_IP "192.168.4.1"
+
+    echo "================================================="
+    echo "   VegasAfterglow Surya HPC Launcher             "
+    echo "================================================="
+    echo "Server IP: $SERVER_IP"
+
+    # 1. Update frontend config
+    echo "NEXT_PUBLIC_API_URL=http://$SERVER_IP:8000" > "$VEGAS_DIR/webtool/frontend/.env.local"
+
+    # 2. Clean up stale ports
+    fuser -k 8000/tcp 2>/dev/null; or true
+    fuser -k 3000/tcp 2>/dev/null; or true
+
+    # 3. Start Backend
+    echo "Starting Backend on 0.0.0.0:8000..."
+    cd "$VEGAS_DIR/webtool/backend"
+    $UVICORN app.main:app --host 0.0.0.0 --port 8000 </dev/null > /tmp/vegas_backend.log 2>&1 &
+    set -l BACKEND_PID $last_pid
+
+    # 4. Start Frontend
+    echo "Starting Frontend on 0.0.0.0:3000..."
+    set -l START_DIR $PWD
+    cd "$VEGAS_DIR/webtool/frontend"
+    set -x PATH "$HOME/miniforge3/envs/vegas_env/bin" $PATH
+    $NPM run dev -- -H 0.0.0.0 -p 3000 </dev/null > /tmp/vegas_frontend.log 2>&1 &
+    set -l FRONTEND_PID $last_pid
+    cd "$START_DIR"
+
+    echo ""
+    echo "================================================="
+    echo " VegasAfterglow is LIVE!"
+    echo " -> Direct LAN Access:      http://$SERVER_IP:3000"
+    echo " -> SSH Port Forward URL:   http://localhost:3000"
+    echo " -> Backend API Docs:       http://$SERVER_IP:8000/docs"
+    echo "================================================="
+    echo " Logs:"
+    echo "   Backend:  tail -f /tmp/vegas_backend.log"
+    echo "   Frontend: tail -f /tmp/vegas_frontend.log"
+    echo " Press [Ctrl+C] to stop both servers."
+    echo "================================================="
+
+    trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; fuser -k 8000/tcp 2>/dev/null; fuser -k 3000/tcp 2>/dev/null; stty sane 2>/dev/null; command echo ''; command echo 'Servers stopped cleanly.'; trap - EXIT INT TERM" EXIT INT TERM
+    wait
+end
+EOF
+```
+
 ---
 
 ### 6.6 How to Run and Access
 
-1. **On Surya Server:**
+1. **On Surya Server (In Bash or Fish):**
    ```bash
    vegasweb
    ```
