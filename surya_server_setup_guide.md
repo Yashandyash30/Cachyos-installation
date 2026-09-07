@@ -6,32 +6,34 @@ Comprehensive guide covering system specifications, resolving the `bash` ➔ `fi
 
 ## 1. System Hardware & Cluster Specifications
 
-| Parameter | Specification |
-| :--- | :--- |
-| **Hostname** | `surya` / `surya.aries.res.in` |
-| **Internal IP** | `192.168.4.1` (Interface `eno7`) |
-| **Location** | ARIES Datacenter, Haldwani / Nainital |
-| **Operating System** | CentOS Linux 7 (Core) x86_64 |
-| **Kernel** | `Linux 3.10.0-1160.31.1.el7.x86_64` |
-| **C Standard Library** | `GLIBC 2.17` |
-| **Processors (Main Node)** | 2× Intel(R) Xeon(R) Gold 6226R @ 2.90 GHz (3.90 GHz Max Turbo) |
-| **Total Cores / Threads** | **32 Physical Cores** (16 cores/socket, 2 sockets) |
-| **System Memory (RAM)** | **188.41 GiB DDR4 Registered ECC** (~176 GiB available) |
-| **Swap Space** | **64.00 GiB** |
-| **Root Partition (`/`)** | **816 GiB** ext4 (17% used, ~680 GiB free) |
-| **Applications (`/apps`)**| **1.82 TiB** xfs (Cluster shared software modules) |
-| **Home Storage (`/home`)**| **41.84 TiB** xfs shared RAID (**94% full** — ~2.7 TiB remaining) |
-| **Desktop Environment** | **XFCE 4.12** (`/usr/bin/xfce4-session`) & GNOME Classic |
-| **Remote Display Server** | **X2Go Server** (`/usr/bin/x2gostartagent`) |
+| Parameter                          | Specification                                                                  |
+| :--------------------------------- | :----------------------------------------------------------------------------- |
+| **Hostname**                 | `surya` / `surya.aries.res.in`                                             |
+| **Internal IP**              | `192.168.4.1` (Interface `eno7`)                                           |
+| **Location**                 | ARIES Datacenter, Haldwani / Nainital                                          |
+| **Operating System**         | CentOS Linux 7 (Core) x86_64                                                   |
+| **Kernel**                   | `Linux 3.10.0-1160.31.1.el7.x86_64`                                          |
+| **C Standard Library**       | `GLIBC 2.17`                                                                 |
+| **Processors (Main Node)**   | 2× Intel(R) Xeon(R) Gold 6226R @ 2.90 GHz (3.90 GHz Max Turbo)                |
+| **Total Cores / Threads**    | **32 Physical Cores** (16 cores/socket, 2 sockets)                       |
+| **System Memory (RAM)**      | **188.41 GiB DDR4 Registered ECC** (~176 GiB available)                  |
+| **Swap Space**               | **64.00 GiB**                                                            |
+| **Root Partition (`/`)**   | **816 GiB** ext4 (17% used, ~680 GiB free)                               |
+| **Applications (`/apps`)** | **1.82 TiB** xfs (Cluster shared software modules)                       |
+| **Home Storage (`/home`)** | **41.84 TiB** xfs shared RAID (**94% full** — ~2.7 TiB remaining) |
+| **Desktop Environment**      | **XFCE 4.12** (`/usr/bin/xfce4-session`) & GNOME Classic               |
+| **Remote Display Server**    | **X2Go Server** (`/usr/bin/x2gostartagent`)                            |
 
 ---
 
 ## 2. Why Typing `bash` Immediately Re-enters `fish` (And How to Fix It)
 
 ### Root Cause
+
 When you ran `bash`, you noticed **Fastfetch** ran immediately and the prompt returned to `yashsharma@surya ~>` (Fish prompt).
 
 This happens because `~/.bashrc` (or `~/.bash_profile`) contains lines like:
+
 ```bash
 fastfetch
 exec fish   # or simply 'fish'
@@ -40,7 +42,9 @@ exec fish   # or simply 'fish'
 Because `~/.bashrc` runs **every single time** a new Bash subshell starts, Bash reads the file, executes `fastfetch`, and then immediately replaces itself with `fish` via `exec fish`.
 
 ### How to Check It
+
 On Surya, run:
+
 ```bash
 grep -n -E "fish|fastfetch" ~/.bashrc ~/.bash_profile ~/.profile
 ```
@@ -50,37 +54,56 @@ grep -n -E "fish|fastfetch" ~/.bashrc ~/.bash_profile ~/.profile
 You have two clean options depending on your preference:
 
 #### Option A: Run Fish on Demand (Recommended on HPC Clusters)
+
 Keep your base interactive shell as **Bash** (essential for running Conda, cluster submission scripts, and build environments), and only start Fish when you want it interactively:
 
 1. Open `~/.bashrc`:
+
    ```bash
    nano ~/.bashrc
    ```
 2. Remove or comment out the `exec fish` (or `fish`) line. Leave `fastfetch` if you like seeing system stats on login.
-3. Save with `Ctrl+O`, `Enter`, and exit with `Ctrl+X`.
-4. Now, typing `bash` stays in Bash. Whenever you want Fish, simply run:
+   ie to remove fastfetch welcome screen everytime remove this block from `~/.bashrc`
+
+```Shell
+# Welcome banner for interactive logins
+if [[ $- == *i* ]]; then
+    fastfetch
+fi
+```
+
+1. Save with `Ctrl+O`, `Enter`, and exit with `Ctrl+X`.
+5. Now, typing `bash` stays in Bash. Whenever you want Fish, simply run:
+
    ```bash
    fish
    ```
+
    And return to Bash anytime with:
+
    ```bash
    exit
    ```
 
 #### Option B: Auto-launch Fish on Login WITHOUT Looping Subshells
+
 If you want Fish to open automatically when you first log in via SSH, but **NOT** when you explicitly type `bash` or run bash scripts:
 
 Replace the raw `exec fish` in `~/.bashrc` with this guard condition:
+
 ```bash
 # Only launch fish in interactive login sessions, never in nested bash subshells or non-interactive scripts
 if [[ $- == *i* && -z "$IN_NESTED_BASH" && -x "$(which fish 2>/dev/null)" ]]; then
     exec fish
 fi
 ```
+
 Then, whenever you need a pure Bash shell from Fish, you can run:
+
 ```fish
 env IN_NESTED_BASH=1 bash
 ```
+
 This tells Bash to bypass the auto-Fish trigger!
 
 ---
@@ -90,12 +113,14 @@ This tells Bash to bypass the auto-Fish trigger!
 Surya has **X2Go Server** installed with the lightweight **XFCE 4.12** desktop environment.
 
 ### Connection Parameters
+
 * **Host:** `192.168.4.1`
 * **Login:** `yashsharma`
 * **SSH Port:** `22`
 * **Session Type:** **XFCE**
 
 ### Wayland Client Crash Workaround (Local PC)
+
 If your local Linux workstation runs Wayland (e.g. Niri, Sway, GNOME Wayland), X2Go Client will crash with a segmentation fault under native Wayland. Always launch it using the X11/Xwayland platform plugin:
 
 ```bash
@@ -103,10 +128,45 @@ QT_QPA_PLATFORM=xcb x2goclient
 ```
 
 ### Quick Single-App X11 Forwarding
+
 To launch a single GUI application (e.g. `ds9`, `topcat`, `xclock`) without a full desktop session, connect using the trusted X11 flag:
+
 ```bash
 ssh -Y yashsharma@192.168.4.1
 ```
+
+### Fixing Legacy Terminal Compatibility (CentOS 7 XFCE & Fish)
+
+If you see strange escape codes like `[>4;1m` or overlapping/squished text when opening a terminal in X2Go:
+
+#### 1. Fixing the `[>4;1m` Artifact in Fish
+
+* **Why it happens:** Fish 3.6+ / 4.x queries the terminal for extended keyboard protocols (`modifyOtherKeys` via `\e[>4;1m`). CentOS 7's legacy terminal library doesn't understand this escape sequence and prints it out as literal text before your prompt (`[>4;1myashsharma@surya ~>`).
+* **How to fix it (Run these commands on Surya):**
+  Fish skips this check if the `MC_SID` variable is set. Export it in your shell configurations:
+  ```bash
+  # 1. Add to Bash startup (~/.bashrc):
+  echo 'export MC_SID=1' >> ~/.bashrc
+
+  # 2. Add to Fish startup (~/.config/fish/config.fish):
+  mkdir -p ~/.config/fish
+  echo 'set -gx MC_SID 1' >> ~/.config/fish/config.fish
+  ```
+
+#### 2. Fixing Font Alignment & Overlapping / Squished Text
+
+* **Why it happens:** The default terminal font in CentOS 7 XFCE is set to proportional `Sans 10` instead of a monospace font, causing letters to overlap.
+* **How to fix it (Run this command on Surya):**
+  ```bash
+  mkdir -p ~/.config/xfce4/terminal
+  cat << 'EOF' > ~/.config/xfce4/terminal/terminalrc
+  [Configuration]
+  FontName=DejaVu Sans Mono 11
+  FontUseSystem=FALSE
+  EOF
+  ```
+
+  *(Restart the terminal inside X2Go; your prompt will be clean and all characters will align properly).*
 
 ---
 
@@ -130,6 +190,7 @@ EOF
 ```
 
 To sync this from your PC to your Laptop over Tailscale:
+
 ```bash
 scp ~/.local/share/remoteview/Surya_HPC.desktop void@100.70.236.70:~/.local/share/remoteview/
 ```
@@ -158,6 +219,7 @@ To make Surya accessible in the sidebar with a single click:
 Surya uses the **Environment Modules** system for cluster-wide scientific packages and compilers.
 
 ### Useful Module Commands
+
 ```bash
 # List all pre-installed software modules
 module avail
@@ -173,6 +235,7 @@ module purge
 ```
 
 ### Modern Python via Miniforge3 (Recommended)
+
 Because CentOS 7 uses `GLIBC 2.17`, standard modern system packages cannot be installed via `yum`. Miniforge3 provides modern Python (3.10 / 3.11 / 3.12) with compatibility for CentOS 7:
 
 ```bash

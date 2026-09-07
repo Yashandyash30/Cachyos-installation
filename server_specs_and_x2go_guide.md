@@ -195,21 +195,43 @@ Whenever you want to use Fish in an SSH or X2Go terminal:
    You will instantly return to your standard shell (`csh` or `bash`).
 
 ### Fixing Legacy Terminal Compatibility (CentOS 7 XFCE)
-If you see strange escape codes like `[>4;1m` or overlapping/squished text:
 
-1. **The `[>4;1m` Escape Artifact:**  
-   Fish 4.x tries to enable XTerm's `modifyOtherKeys` mode (`\e[>4;1m`). Older VTE terminal libraries (like on CentOS 7) do not recognize this escape code and print it as raw text.  
-   *Fix:* A wrapper script was placed at `~/.local/bin/fish` setting `export MC_SID=1`, which instructs Fish to skip unsupported keyboard protocol sequences for legacy terminals.
+If you see strange escape codes like `[>4;1m` or overlapping/squished text when running Fish or opening the XFCE terminal:
 
-2. **Font Alignment / Overlapping Text:**  
-   The default terminal in XFCE was using a proportional font (`Sans 10`) instead of a fixed-width monospace font, causing character overlapping and cursor misalignment.  
-   *Fix:* Configured `~/.config/xfce4/terminal/terminalrc` with:
-   ```ini
-   [Configuration]
-   FontName=DejaVu Sans Mono 11
-   FontUseSystem=FALSE
-   ```
-   Opening a new terminal window will now display a clean, properly spaced monospace font.
+#### 1. The `[>4;1m` Escape Code Artifact
+* **Why it happens:** Fish 3.6+ / 4.x queries the terminal for extended keyboard protocols (`modifyOtherKeys` via `\e[>4;1m`). Older VTE terminal libraries (like on CentOS 7) do not recognize this escape sequence and echo it as raw text directly before your prompt (`[>4;1muser@host ~>`).
+* **How to fix it (Run these commands on the server):**
+
+  Fish checks the `MC_SID` environment variable (used by Midnight Commander subshells). When `MC_SID` is set, Fish skips sending the `modifyOtherKeys` sequence completely:
+
+  ```bash
+  # 1. Export in your Bash startup:
+  echo 'export MC_SID=1' >> ~/.bashrc
+
+  # 2. Export in your Csh startup (default shell on ARIES):
+  echo 'setenv MC_SID 1' >> ~/.cshrc
+
+  # 3. Export in Fish config to catch all interactive Fish sessions:
+  mkdir -p ~/.config/fish
+  echo 'set -gx MC_SID 1' >> ~/.config/fish/config.fish
+  ```
+
+  *(If you use a wrapper script at `~/.local/bin/fish`, ensure it includes `export MC_SID=1` before executing the actual fish binary).*
+
+#### 2. Font Alignment & Overlapping / Squished Text
+* **Why it happens:** CentOS 7's XFCE terminal defaults to a proportional variable-width font (`Sans 10`) instead of a fixed-width monospace font. This causes character overlapping, cursor misalignment, and ragged text in Fish and text editors.
+* **How to fix it (Run this command on the server):**
+
+  Configure `xfce4-terminal` to use a proper monospace font (`DejaVu Sans Mono 11`):
+  ```bash
+  mkdir -p ~/.config/xfce4/terminal
+  cat << 'EOF' > ~/.config/xfce4/terminal/terminalrc
+  [Configuration]
+  FontName=DejaVu Sans Mono 11
+  FontUseSystem=FALSE
+  EOF
+  ```
+  *(Close and reopen your terminal in X2Go; it will immediately render with crisp, properly aligned monospace typography).*
 
 ---
 
