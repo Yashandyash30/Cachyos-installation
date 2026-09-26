@@ -227,6 +227,83 @@ if env_prefix:
             if f.endswith(".so") or ".so." in f:
                 patch_elf_verneed(os.path.join(root, f))
 EOF
+
+# 6. Fix GTBurst file/directory dialog freeze on network/NFS mounts
+python3 << 'EOF'
+import os
+
+code = '''import os
+import tkinter
+from tkinter import filedialog
+
+def init():
+    pass
+
+class FileDialog(object):
+    def __init__(self, master=None, **kwargs):
+        self.master = master
+        self.kwargs = kwargs
+
+    def get(self):
+        parent = self.master
+        title = self.kwargs.get('title', 'Please select a file')
+        initialdir = self.kwargs.get('initialdir', None)
+        filetypes = self.kwargs.get('filetypes', [('All files', '*')])
+        if not initialdir or not os.path.exists(initialdir):
+            initialdir = os.path.expanduser('~')
+        res = filedialog.askopenfilename(
+            parent=parent,
+            title=title,
+            initialdir=initialdir,
+            filetypes=filetypes
+        )
+        return res if res else ''
+
+class DirectoryDialog(object):
+    def __init__(self, master=None, **kwargs):
+        self.master = master
+        self.kwargs = kwargs
+
+    def get(self):
+        parent = self.master
+        title = self.kwargs.get('title', 'Please select a directory')
+        initialdir = self.kwargs.get('initialdir', None)
+        if not initialdir or not os.path.exists(initialdir):
+            if initialdir:
+                try:
+                    os.makedirs(initialdir, exist_ok=True)
+                except Exception:
+                    initialdir = os.path.expanduser('~')
+            else:
+                initialdir = os.path.expanduser('~')
+        res = filedialog.askdirectory(
+            parent=parent,
+            title=title,
+            initialdir=initialdir,
+            mustexist=True
+        )
+        return res if res else ''
+
+def chooseFile(*args, **kwargs):
+    master = args[0] if len(args) > 0 else kwargs.pop('parent', kwargs.pop('master', None))
+    dialog = FileDialog(master=master, **kwargs)
+    return dialog.get()
+
+def chooseDirectory(*args, **kwargs):
+    master = args[0] if len(args) > 0 else kwargs.pop('parent', kwargs.pop('master', None))
+    dialog = DirectoryDialog(master=master, **kwargs)
+    return dialog.get()
+'''
+
+env_prefix = os.environ.get("CONDA_PREFIX", "")
+if env_prefix:
+    for root, dirs, files in os.walk(env_prefix):
+        if "fancyFileDialogs.py" in files:
+            target = os.path.join(root, "fancyFileDialogs.py")
+            with open(target, "w") as f:
+                f.write(code)
+            print(f"[PATCHED FILE DIALOG] {target}")
+EOF
 ```
 
 ### 2.5 Install Fermi GBM Data Tools (Optional)
@@ -563,6 +640,7 @@ conda deactivate
 | `FITSFixedWarning: 'datfix' made the change…`                            | **Not an error** — Astropy auto-fixes Fermi metadata date fields                                                                                                                             |
 | `CALDB/Alias Missing Error`                                               | You forgot to activate: run`conda activate fermi` before launching Python                                                                                                                         |
 | Permission denied on`gtapps_mp` scripts                                   | Re-run the patch from Step 2.4                                                                                                                                                                      |
+| File/folder dialog stuck / rotating circle on `/` in GTBurst              | Legacy `fsdialog.tcl` crawls `/` and hangs in `rpc_wait_bit_killable` on remote NFS mounts (`/observation_Data`). Apply Step 2.4 (#6) to replace `fancyFileDialogs.py` with native `tkinter.filedialog`. |
 
 ### 3ML / XSPEC Issues
 

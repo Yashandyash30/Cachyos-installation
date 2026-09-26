@@ -37,6 +37,10 @@ Comprehensive guide containing the server hardware and OS specifications, diagno
 * **Network Archive (`/observation_Data`):** NFS mount from `10.10.10.26:/Data_Archive_Aries`
 * **GPU / Video Controller:** Matrox Electronics Systems Ltd. MGA G200eH3 (integrated server management/VGA controller)
 
+> [!WARNING]
+> **NFS Mount Latency & GUI Freezes (`/observation_Data`):**
+> Because `/observation_Data` is a network NFS mount from `10.10.10.26`, any GUI application that attempts to scan, glob, or `stat` the entire root directory `/` (such as GTBurst's legacy `fsdialog.tcl`) will enter kernel uninterruptible sleep (`rpc_wait_bit_killable`) waiting on RPC calls, freezing the GUI with an infinite rotating circle. Always patch legacy GUI file pickers (e.g. `fancyFileDialogs.py` in Fermitools) to use direct path dialogs (`tkinter.filedialog`).
+
 ---
 
 ## 2. Troubleshooting & Fixing the X2Go Client Error

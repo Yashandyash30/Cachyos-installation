@@ -1,6 +1,9 @@
 # This file contains fish universal variable definitions.
 # VERSION: 3.0
 SETUVAR --export BROWSER:/usr/bin/zen\x2dbrowser
+SETUVAR --export SBIPP_TRAINING_ROOT:/home/void/frankenblast\x2dhost/data/sbi_training_sets
+SETUVAR --export SED_OUTPUT_ROOT:/home/void/frankenblast\x2dhost/data/sed_output
+SETUVAR --export SPS_HOME:/home/void/fsps
 SETUVAR --export _JAVA_AWT_WM_NONREPARENTING:1
 SETUVAR __done_min_cmd_duration:10000
 SETUVAR __done_notification_urgency_level:low

@@ -68,10 +68,86 @@ chmod +x $CONDA_PREFIX/lib/python3.9/site-packages/fermitools/GtBurst/gtapps_mp/
 sed -i 's/num.float/float/g' $CONDA_PREFIX/lib/python3.9/site-packages/fermitools/UnbinnedAnalysis.py
 
 # 3. Fix the Aplpy plotting deprecations in the interactive display
-sed -i 's/set_tick_labels_font/tick_labels.set_font/g' $CONDA_PREFIX/lib/python3.9/site-packages/fermitools/GtBurst/commands/gtdolike.py
-sed -i 's/set_axis_labels_font/axis_labels.set_font/g' $CONDA_PREFIX/lib/python3.9/site-packages/fermitools/GtBurst/commands/gtdolike.py
-sed -i 's/show_grid/add_grid/g' $CONDA_PREFIX/lib/python3.9/site-packages/fermitools/GtBurst/commands/gtdolike.py
+sed -i 's/set_tick_labels_font/tick_labels.set_font/g' $CONDA_PREFIX/lib/python3.*/site-packages/fermitools/GtBurst/commands/gtdolike.py
+sed -i 's/set_axis_labels_font/axis_labels.set_font/g' $CONDA_PREFIX/lib/python3.*/site-packages/fermitools/GtBurst/commands/gtdolike.py
+sed -i 's/show_grid/add_grid/g' $CONDA_PREFIX/lib/python3.*/site-packages/fermitools/GtBurst/commands/gtdolike.py
 
+# 4. Fix GTBurst file/directory dialog freeze on root/NFS mounts
+python3 << 'EOF'
+import os
+
+code = '''import os
+import tkinter
+from tkinter import filedialog
+
+def init():
+    pass
+
+class FileDialog(object):
+    def __init__(self, master=None, **kwargs):
+        self.master = master
+        self.kwargs = kwargs
+
+    def get(self):
+        parent = self.master
+        title = self.kwargs.get('title', 'Please select a file')
+        initialdir = self.kwargs.get('initialdir', None)
+        filetypes = self.kwargs.get('filetypes', [('All files', '*')])
+        if not initialdir or not os.path.exists(initialdir):
+            initialdir = os.path.expanduser('~')
+        res = filedialog.askopenfilename(
+            parent=parent,
+            title=title,
+            initialdir=initialdir,
+            filetypes=filetypes
+        )
+        return res if res else ''
+
+class DirectoryDialog(object):
+    def __init__(self, master=None, **kwargs):
+        self.master = master
+        self.kwargs = kwargs
+
+    def get(self):
+        parent = self.master
+        title = self.kwargs.get('title', 'Please select a directory')
+        initialdir = self.kwargs.get('initialdir', None)
+        if not initialdir or not os.path.exists(initialdir):
+            if initialdir:
+                try:
+                    os.makedirs(initialdir, exist_ok=True)
+                except Exception:
+                    initialdir = os.path.expanduser('~')
+            else:
+                initialdir = os.path.expanduser('~')
+        res = filedialog.askdirectory(
+            parent=parent,
+            title=title,
+            initialdir=initialdir,
+            mustexist=True
+        )
+        return res if res else ''
+
+def chooseFile(*args, **kwargs):
+    master = args[0] if len(args) > 0 else kwargs.pop('parent', kwargs.pop('master', None))
+    dialog = FileDialog(master=master, **kwargs)
+    return dialog.get()
+
+def chooseDirectory(*args, **kwargs):
+    master = args[0] if len(args) > 0 else kwargs.pop('parent', kwargs.pop('master', None))
+    dialog = DirectoryDialog(master=master, **kwargs)
+    return dialog.get()
+'''
+
+env_prefix = os.environ.get("CONDA_PREFIX", "")
+if env_prefix:
+    for root, dirs, files in os.walk(env_prefix):
+        if "fancyFileDialogs.py" in files:
+            target = os.path.join(root, "fancyFileDialogs.py")
+            with open(target, "w") as f:
+                f.write(code)
+            print(f"[PATCHED FILE DIALOG] {target}")
+EOF
 ```
 
 ---
@@ -172,6 +248,12 @@ Once you have the `FT1` and `FT2` files on your disk, open the GTBurst GUI and s
 ### 2. Ignoring "FITSFixedWarning"
 
 During likelihood analysis or plotting, you may see a wall of text in the terminal warning that `'datfix' made the change 'Invalid DATE-OBS format'`. **This is not an error.** The standard Fermi data pipeline leaves these date fields blank in favor of MJD format; Astropy is simply fixing the metadata formatting for you in the background.
+
+### 3. File/Folder Dialog Hangs with Rotating Circle on '/'
+
+**Why this happens:** When clicking "Load data from a directory..." or selecting files, GTBurst invokes an old bundled Tcl extension (`fsdialog.tcl`) through `fancyFileDialogs.py`. That script attempts to build an interactive folder tree starting from `/` down to your data directory, issuing `glob` and `file stat` on all directories under root. On multi-user servers or workstations with remote network mounts (like `/observation_Data` NFS mount on ARIES), `file stat` enters kernel uninterruptible sleep (`rpc_wait_bit_killable`), causing the single-threaded Tk GUI to hang indefinitely with a spinning watch cursor.
+
+**How to fix it:** Patch `fancyFileDialogs.py` to use Python's built-in `tkinter.filedialog` (which opens directly in `initialdir` without traversing root). This is included in Step 4 (#4).
 
 ---
 
