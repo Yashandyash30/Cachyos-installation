@@ -634,7 +634,7 @@ When you right-click a folder on a mapped network drive (like `Z:\Coursework`), 
 1. Open PowerShell and run:
 
 ```powershell
-notepad C:\Users\Yash\Documents\Launch-Antigravity.ps1
+notepad C:\Users\void\Documents\Launch-Antigravity.ps1
 ```
 
 2. Paste this code into Notepad:
@@ -642,7 +642,7 @@ notepad C:\Users\Yash\Documents\Launch-Antigravity.ps1
 ```powershell
 param([string]$path)
 
-$exePath = "C:\Users\Yash\AppData\Local\Programs\Antigravity IDE\Antigravity IDE.exe"
+$exePath = "C:\Users\void\AppData\Local\Programs\Antigravity IDE\Antigravity IDE.exe"
 
 # If the path is on the Z: or Y: drives, translate to the remote Linux path
 if ($path -match "^Z:") {
