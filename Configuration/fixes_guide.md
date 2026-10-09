@@ -1,4 +1,3 @@
-
 # Master Troubleshooting & Setup Guide
 
 This guide consolidates all diagnostic findings, fixes, and setups configured on this system into a clean, step-by-step reference.
@@ -179,3 +178,38 @@ kbuildsycoca6
 ```
 
 *(A symlink was also created at `~/.local/bin/zed -> /usr/bin/zeditor` for convenient terminal usage).*
+
+---
+
+## Part 4: Fixing `btop` UTF-8 Locale on CachyOS
+
+### Root Cause
+
+Even though `/etc/locale.conf` was updated to `en_IN.UTF-8`:
+
+1. `/etc/default/locale` still contained legacy `en_IN` (without `.UTF-8`). On login, PAM (`pam_env.so`) reads `/etc/default/locale` and overrode the session back to `en_IN`.
+2. Existing open terminal sessions retained the inherited `LANG=en_IN` environment variables in memory.
+
+### Actions Applied Automatically
+
+1. Created `~/.config/fish/conf.d/locale.fish` to export `en_IN.UTF-8` across all interactive and login fish shell sessions.
+2. Created `~/.config/environment.d/locale.conf` and updated `systemctl --user` environment to propagate UTF-8 to all user services and terminals.
+
+### Final Step (Sync PAM Config)
+
+To ensure SDDM/PAM never resets the locale on future logins:
+
+```bash
+sudo cp /etc/locale.conf /etc/default/locale
+```
+
+### In Your Current Terminal
+
+In the terminal window where `btop` failed, reload the variables:
+
+```bash
+source ~/.config/fish/conf.d/locale.fish
+btop
+```
+
+*(Any new terminal window will work automatically without running anything)*.
