@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "brightdata-irctc": {
+      "serverUrl": "https://mcp.brightdata.com/mcp?token=a97fbeb1-5ac7-4b32-9574-413fa1bb7647"
+    }
+  }
+}
